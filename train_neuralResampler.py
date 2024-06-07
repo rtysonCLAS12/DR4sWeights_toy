@@ -129,7 +129,7 @@ history=model.fit(X_train,y_train,epochs=20, validation_data=(X_test, y_test), v
 endT_train = time.time()
 T_train=(endT_train-startT_train)/60
 
-print('Training took '+format(T_train,'.2f')+' minutes\n')
+print('\nTraining took '+format(T_train,'.2f')+' minutes\n')
 
 #save model
 model.save('model_neuralResampler'+endName+'.keras')
@@ -142,7 +142,17 @@ X_test=X_test[y_test==1]
 weights_test=weights_test[y_test==1]
 y_test=y_test[y_test==1]
 
+print('Test with '+str(X_test.shape[0])+' events...')
+
+#test model
+startT_test = time.time()
+
 y_pred=model.predict(X_test).reshape((X_test.shape[0]))
+
+endT_test = time.time()
+T_test=endT_test-startT_test
+
+print('Testing took '+format(T_test,'.4f')+' s\n')
 
 #we can now calculate the Density Ratio estimated Weights
 y_pred[y_pred==1]=1-0.0000001

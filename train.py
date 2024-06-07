@@ -31,7 +31,7 @@ startT_all = time.time()
 #plots outputted to print_dir
 #append endName to end of plots to avoid overwriting plots
 print_dir=''
-endName='_GBDTs' 
+endName='_HistGBDTs' 
 
 masses=np.array([0.1395703,0.1395703])#np.array([0.,0.])
 targetMass=0.777#0.1349768
@@ -97,9 +97,10 @@ weights_train=weights[:nTrain]
 weights_test=weights[nTrain:]
 
 #both GradientBoosting and HistGradientBoosting work well
+#HistGradientBoosting is much faster
 
-#model = HistGradientBoostingClassifier(max_depth=10)
-model = GradientBoostingClassifier(max_depth=10)
+model = HistGradientBoostingClassifier(max_depth=10)
+#model = GradientBoostingClassifier(max_depth=10)
 
 print('Training with '+str(X_train.shape[0])+' events...')
 
@@ -122,7 +123,17 @@ X_test=X_test[y_test==1]
 weights_test=weights_test[y_test==1]
 y_test=y_test[y_test==1]
 
+print('Test with '+str(X_test.shape[0])+' events...')
+
+#test model
+startT_test = time.time()
+
 y_pred=model.predict_proba(X_test[:,0:5])[:,1]
+
+endT_test = time.time()
+T_test=(endT_test-startT_test)
+
+print('Testing took '+format(T_test,'.4f')+' seconds\n')
 
 #we can now calculate the Density Ratio estimated Weights
 y_pred[y_pred==1]=1-0.0000001
