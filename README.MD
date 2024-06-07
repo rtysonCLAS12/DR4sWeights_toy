@@ -22,5 +22,5 @@ or
 
 Both scripts take ~5 minutes to run.
 
-NB: These scripts will output plots to your current directory. At the top of both scripts you can change the print_dir variable to change the location where the plots are written. You can change the endName variable so that plots are saved as name_endName.png to avoid overwritting plots.
+NB: These scripts will output plots to your current directory. At the top of both scripts you can change the print_dir variable to change the location where the plots are written. You can change the endName variable so that plots are saved as name_endName.png to avoid overwritting plots. By default train.py will save plots as name_GBDTs.png and train_neuralResampler.py will save plots as name_nr.png.
 
