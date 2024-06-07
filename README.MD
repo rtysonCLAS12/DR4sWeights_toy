@@ -1,6 +1,6 @@
 # DR4sWeights_toy
 
-Code exemplifying how to learn sWeights using Decision Trees or Neural Resamplers using a toy example.
+Code exemplifying how to learn sWeights using Decision Trees or Neural Resamplers based on a toy example.
 
 ## Requirements
 
