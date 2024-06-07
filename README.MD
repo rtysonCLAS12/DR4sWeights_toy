@@ -1,6 +1,6 @@
 # DR4sWeights_toy
 
-Code exemplifying how to learn sWeights using Decision Trees or Neural Resampler using a toy example.
+Code exemplifying how to learn sWeights using Decision Trees or Neural Resamplers using a toy example.
 
 ## Requirements
 
@@ -22,5 +22,5 @@ or
 
 Both scripts take ~5 minutes to run.
 
-NB: These will output plots to your current directory. At the top of both scripts you can change the print_dir variable to change the location where the plots are written. You can change the endName variable to append so that plots are written as name_endName.png to avoid overwritting plots.
+NB: These scripts will output plots to your current directory. At the top of both scripts you can change the print_dir variable to change the location where the plots are written. You can change the endName variable so that plots are saved as name_endName.png to avoid overwritting plots.
 
