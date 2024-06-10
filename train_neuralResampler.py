@@ -37,7 +37,7 @@ startT_all = time.time()
 
 #plots outputted to print_dir
 #append endName to end of plots to avoid overwriting plots
-print_dir='/w/work/clas12/tyson/plots/aiDataAcceptance/toy_DR4sWeights/vars/'
+print_dir=''
 endName='_nr' 
 noP_inTrain=True
 
