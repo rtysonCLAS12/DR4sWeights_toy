@@ -62,22 +62,30 @@ class plotter:
 
   def plotDRToSWeightComp(self,vars,sWeights,DRWeights,nPart):
 
-    names=['_Theta','_Phi']
-    titles=[r'$\theta$',r'$\phi$']
-    units=['[rad]','[rad]']
-    lims_l=[0,0]
-    lims_h=[1,1]
+    #names=['_Theta','_Phi']
+    #titles=[r'$\theta$',r'$\phi$']
+    #units=['[rad]','[rad]']
+    #lims_l=[0,0]
+    #lims_h=[1,1]
+
+    names=['_P','_Theta','_Phi']
+    titles=['P',r'$\theta$',r'$\phi$']
+    units=['[GeV]','[rad]','[rad]']
+    #lims_l=[0,0,-3.5]
+    #lims_h=[1,3.5,3.5]
+    lims_l=[0,0,0]
+    lims_h=[1,1,1]
 
     for i in range(nPart):
-      for j in range(2):
+      for j in range(3): #2
 
         pName='_part'+str(i)
         pTitle='Particle '+str(i)
 
         fig = plt.figure(figsize=(20, 20))
-        plt.hist(vars[:,i*2+j], range=[lims_l[j],lims_h[j]],bins=100,color='royalblue',label='sWeights Signal',weights=sWeights)
-        plt.hist(vars[:,i*2+j], range=[lims_l[j],lims_h[j]],bins=100,edgecolor='firebrick',label='Density Ratio Signal',hatch='/', histtype='step',fill=False,linewidth=3,weights=DRWeights)
-        plt.hist(vars[:,i*2+j], range=[lims_l[j],lims_h[j]],bins=100,edgecolor='black',color='black',label='All', histtype='step',fill=False,linewidth=3)
+        plt.hist(vars[:,i*3+j], range=[lims_l[j],lims_h[j]],bins=100,color='royalblue',label='sWeights Signal',weights=sWeights) #*2
+        plt.hist(vars[:,i*3+j], range=[lims_l[j],lims_h[j]],bins=100,edgecolor='firebrick',label='Density Ratio Signal',hatch='/', histtype='step',fill=False,linewidth=3,weights=DRWeights)
+        plt.hist(vars[:,i*3+j], range=[lims_l[j],lims_h[j]],bins=100,edgecolor='black',color='black',label='All', histtype='step',fill=False,linewidth=3)
         plt.legend(loc='upper right')
         plt.xlabel(pTitle+' '+titles[j]+' '+units[j])
         plt.title(pTitle+' '+titles[j])

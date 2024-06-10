@@ -30,8 +30,14 @@ startT_all = time.time()
 
 #plots outputted to print_dir
 #append endName to end of plots to avoid overwriting plots
-print_dir=''
+print_dir='/w/work/clas12/tyson/plots/aiDataAcceptance/toy_DR4sWeights/vars/'
 endName='_HistGBDTs' 
+
+noP_inTrain=True
+
+trainvars=[0,1,2,3,4,5]
+if noP_inTrain:
+  trainvars=[1,2,4,5]
 
 masses=np.array([0.1395703,0.1395703])#np.array([0.,0.])
 targetMass=0.777#0.1349768
@@ -67,15 +73,10 @@ pter.plotSWeightedVariables(np.hstack((DataAll,IMAll.reshape((IMAll.shape[0],1))
 
 signalSWeights=(sWeights.sig).to_numpy().reshape((DataAll.shape[0],1))
 
-# remove P as highly correlated to IM
-dataset=np.zeros((DataAll.shape[0],2*len(masses)))
-for i in range(len(masses)):
-  dataset[:,i*2+0]=DataAll[:,i*3+1]
-  dataset[:,i*2+1]=DataAll[:,i*3+2]
 
 #training data is composed of twice the data
 #weighted with sWeights and by one
-X=np.vstack((dataset,dataset))
+X=np.vstack((DataAll,DataAll))
 weights=np.vstack((signalSWeights,np.ones((DataAll.shape[0],1)))).reshape((X.shape[0]))
 Y=np.vstack((np.ones((DataAll.shape[0],1)),np.zeros((DataAll.shape[0],1)))).reshape((X.shape[0]))
 
@@ -107,7 +108,7 @@ print('Training with '+str(X_train.shape[0])+' events...')
 #train model
 startT_train = time.time()
 
-model.fit(X_train,y_train,sample_weight=weights_train)
+model.fit(X_train[:,trainvars],y_train,sample_weight=weights_train)
 
 endT_train = time.time()
 T_train=(endT_train-startT_train)/60
@@ -128,7 +129,7 @@ print('Test with '+str(X_test.shape[0])+' events...')
 #test model
 startT_test = time.time()
 
-y_pred=model.predict_proba(X_test[:,0:5])[:,1]
+y_pred=model.predict_proba(X_test[:,trainvars])[:,1]
 
 endT_test = time.time()
 T_test=(endT_test-startT_test)
