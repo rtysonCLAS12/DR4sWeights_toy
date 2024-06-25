@@ -1,227 +1,247 @@
+import ROOT
 import numpy as np
-from matplotlib import pyplot as plt
-from scipy.stats import norm
-from scipy import optimize
-from sweights import SWeight
 import time as timeCount
+import math
+import random 
+import zfit
+import mplhep
+from matplotlib import pyplot as plt
+from hep_ml import splot
+import pandas
 
-from iminuit import Minuit, cost
-from iminuit.cost import ExtendedUnbinnedNLL
-
+plt.rcParams.update({'font.size': 30,
+      #'font.family':  'Times New Roman',
+      'legend.edgecolor': 'black',
+      'xtick.minor.visible': True,
+      'ytick.minor.visible': True,
+      'xtick.major.size':15,
+      'xtick.minor.size':10,
+      'ytick.major.size':15,
+      'ytick.minor.size':10,
+      'figure.max_open_warning':200})
 
 class generator:
 
-  Mmin = 0
-  Mmax = 10
-  Phmin = -np.pi
-  Phmax = np.pi
-  Zmin=-1
-  Zmax=1
+  masses=np.array([0.,0.])
+  targetMass=0.1349768
+  nSignalEvents=1000
+  nBGEvents=1000
 
-  nEvents=1000
+  signalData=np.zeros((1000,3*2))
+  bgData=np.zeros((1000,3*2))
+  mixedData=np.zeros((1000,3*2))
 
-  Data=np.zeros((1000,3*2))
+  signalIM=np.zeros((1,1))
+  signalBG=np.zeros((1,1))
+  mixedIM=np.zeros((1,1))
 
-  sigWeights=[]
-  bgWeights=[]
-
-  sigFit=[]
-  bgFit=[]
-  yieldsFit=[]
+  sPlotModel=0
+  sPlotData=np.zeros((1,1))
+  sWeights=np.zeros((1,1))
 
 
-  def __init__(self,MRange,PhRange,ZRange,nEvs):
-    self.Mmin=MRange[0]
-    self.Mmax=MRange[1]
-    self.Phmin=PhRange[0]
-    self.Phmax=PhRange[1]
-    self.Zmin=ZRange[0]
-    self.Zmax=ZRange[1]
 
-    self.nEvents=nEvs
+  def __init__(self,ms,t,nEvSig,nEvBG):
+    self.masses=ms
+    self.targetMass=t
+    self.nSignalEvents=nEvSig
+    self.nBGEvents=nEvBG
+    self.signalData=np.zeros((nEvSig,3*len(ms)))
+    self.bgData=np.zeros((nEvBG,3*len(ms)))
 
-    self.generate()
+    self.genSignal()
+    self.genBackground()
 
-  def getData(self):
-    return self.Data
 
-  #Unormalised Asymmetry
-  def AsymmetryN(self,xphi,Sigma,N):
-    return N*self.AsymmetryPDF(xphi,Sigma)
+  def genSignal(self):
 
-  #Asymmetry PDF
-  def AsymmetryPDF(self,xphi,Sigma):
-    return (1 - Sigma*np.cos(2*xphi))/(self.Phmax-self.Phmin)
-  
-  def SignalMassPDF(self,xmass,mean,width):
-    sig  = norm(mean,width)
-    #integral of signal function using CDF
-    normInt = np.diff( sig.cdf([self.Mmin,self.Mmax]) )/ (self.Mmax-self.Mmin)
-    #normalised PDF
-    return sig.pdf(xmass)/normInt
-
-  def Cheb(self,x,coeffs):
-    return np.polynomial.chebyshev.chebval(x,coeffs)
-
-  def BackGPDF(self,x,coeffs):
-
-    chebedges = np.arange(-1.0, 1.0, 1./1000)
-    chebcentres = (chebedges[:-1] + chebedges[1:]) / 2
-
-    #transform x to 0 [-1,1]
-    x = -1 + 2*(x-self.Mmin)/(self.Mmax-self.Mmin)
-    val  = self.Cheb(x,coeffs)
-    #integral of function (approximate)
-    integ = np.sum(self.Cheb(chebcentres,coeffs))/chebcentres.size
-    #pdf value
-    return val/integ
-  
-  def TruePDF(self,m,ph,z):
-    return self.SignalMassPDF(m,5,0.5)*self.AsymmetryPDF(ph,0.8) + 2*self.BackGPDF(m,[0.6,0.2])*self.AsymmetryPDF(ph,-0.2)
-
-  def generate_event(self,gen_max_val,nEvs):
-    x = np.random.uniform(self.Mmin,self.Mmax,nEvs)
-    y = np.random.uniform(self.Phmin,self.Phmax,nEvs)
-    z = np.random.uniform(self.Zmin,self.Zmax,nEvs)
-    val = self.TruePDF(x,y,z)
-    #print(val,max_val)
-    mask=val > np.random.uniform(0,gen_max_val,nEvs)
-    return x[mask],y[mask],z[mask]
-
-  def getGenMaxVal(self):
-    gen_max_val = 0.
-    for i in range(0,1000):
-      x = np.random.uniform(self.Mmin,self.Mmax)
-      y = np.random.uniform(self.Phmin,self.Phmax)
-      z = np.random.uniform(self.Zmin,self.Zmax)
-      val = self.TruePDF(x,y,z)
-      if val>gen_max_val :
-        gen_max_val=val
-        
-    #increase max by 10% to be sure    
-    gen_max_val*=1.1
-    return gen_max_val
-  
-  def generate(self):
-
-    #print('Get Sampling Max Value...')
-    gen_max_val=self.getGenMaxVal()
-    #print('Done')
-
-    self.Data = np.zeros((1,1))
+    event = ROOT.TGenPhaseSpace()
 
     start_time = timeCount.time()
 
-    while self.Data.shape[0]<self.nEvents:
+    for it in range(self.nSignalEvents):
+      target = ROOT.TLorentzVector(0.0,0.0,0.0,self.targetMass)
+      event.SetDecay(target,len(self.masses),self.masses,"")
+      event.Generate()
 
-      if self.Data.shape[0]!=1:
+      for j in range(len(self.masses)):
+        self.signalData[it,j*3+0]=event.GetDecay(j).P()
+        self.signalData[it,j*3+1]=event.GetDecay(j).Theta()
+        self.signalData[it,j*3+2]=event.GetDecay(j).Phi()
+
+      if (it%50000) == 0 and it!=0:
         fin_time = timeCount.time()
         tdif=fin_time-start_time
-        print('Generated '+str(self.Data.shape[0])+' signal events out of '+str(self.nEvents)+' in '+format(tdif,'.2f')+'s')
-
-      x,y,z=self.generate_event(gen_max_val,self.nEvents)
-
-      if self.Data.shape[0]==1:
-        self.Data=np.hstack((x.reshape((x.shape[0],1)),y.reshape((x.shape[0],1)),z.reshape((x.shape[0],1))))
-      else:
-        t=np.hstack((x.reshape((x.shape[0],1)),y.reshape((x.shape[0],1)),z.reshape((x.shape[0],1))))
-        self.Data=np.vstack((self.Data,t))
+        print('Generated '+str(it)+' signal events out of '+str(self.nSignalEvents)+' in '+format(tdif,'.2f')+'s')
 
     fin_time = timeCount.time()
     tdif=fin_time-start_time 
+    print('Generated all '+str(self.nSignalEvents)+' signal events in '+format(tdif,'.2f')+'s')
 
-    self.Data=self.Data[0:self.nEvents,:]
+  def sample(self,IM):
+    r=np.random.exponential(0.5)
+    if(r>IM):
+      return True
+    else:
+      return False
 
-    print('Generated all '+str(self.nEvents)+' events in '+format(tdif,'.2f')+'s')
+  def genBackground(self):
 
-  def CombinedMassNExt(self,xmass,smean,swidth,bc0,bc1,bc2,Ys,Yb):
-    return ((Ys+Yb),Ys*self.SignalMassPDF(xmass,smean,swidth)+Yb*self.BackGPDF(xmass,[bc0,bc1,bc2]))
-  
-  def iMinuitFit(self,mass_dist):
-
-    Ndata = mass_dist.size
-    mi = Minuit( ExtendedUnbinnedNLL(mass_dist, self.CombinedMassNExt), smean=5, swidth=0.5,bc0=0.6,bc1=0.2,bc2=0, Ys=Ndata/2,Yb=Ndata/2 )
-    mi.limits['Yb'] = (0,Ndata*1.1)
-    mi.limits['Ys'] = (0,Ndata*1.1)
-    mi.limits['smean'] = (self.Mmin,self.Mmax)
-    mi.limits['swidth'] = (0.01,self.Mmax-self.Mmin)
-    mi.limits['bc0'] = (-1,1)
-    mi.limits['bc1'] = (-1,1)
-    mi.limits['bc2'] = (-1,1)
-
-    #fix overall normalisation coefficeint to 1
-    #mi.fixed['bc0'] = True
-    #mi.fixed['bc0'] = True
-    mi.fixed['bc2'] = True
-
-    #do fitting
-    mi.migrad()
-
-    #save values
-    sg_mean=mi.values[0]
-    sg_width=mi.values[1]
-    bg_c0=mi.values[2]
-    bg_c1=mi.values[3]
-    bg_c2=mi.values[4]
-    Ysignal = mi.values[5]
-    Yback = mi.values[6]
-
-    #print(mi)
     
-    return [sg_mean,sg_width],[bg_c0,bg_c1,bg_c2],[Ysignal,Yback]
+    event = ROOT.TGenPhaseSpace()
 
+    start_time = timeCount.time()
+
+    it=0
+    while it<self.nBGEvents:
+      mass = random.uniform(self.targetMass-0.3*self.targetMass,self.targetMass+0.3*self.targetMass)
+      target = ROOT.TLorentzVector(0.0,0.0,0.0,mass)
+      event.SetDecay(target,len(self.masses),self.masses,"")
+
+      event.Generate()
+
+      eve=np.zeros((1,3*len(self.masses)))
+      for j in range(len(self.masses)):
+        eve[0,j*3+0]=event.GetDecay(j).P()
+        eve[0,j*3+1]=event.GetDecay(j).Theta()
+        eve[0,j*3+2]=event.GetDecay(j).Phi()
+
+      IM=self.calcInvariantMass(eve)[0]
+
+      #shape bg with exponential 
+      if self.sample(IM)==True:
+        self.bgData[it]=eve
+        it=it+1
+
+        if (it%50000) == 0 and it!=0:
+          fin_time = timeCount.time()
+          tdif=fin_time-start_time
+          print('Generated '+str(it)+' background events out of '+str(self.nBGEvents)+' in '+format(tdif,'.2f')+'s')
+    
+    fin_time = timeCount.time()
+    tdif=fin_time-start_time 
+    print('Generated all '+str(self.nBGEvents)+' background events in '+format(tdif,'.2f')+'s')
+
+    self.mixedData=np.vstack((self.bgData,self.signalData))
+    np.random.shuffle(self.mixedData)
+    self.smear()
+    self.setIMArrays()
+    self.scale()
+    
+
+
+  def setIMArrays(self):
+    
+    self.mixedIM=self.calcInvariantMass(self.mixedData)
+    self.bgIM=self.calcInvariantMass(self.bgData)
+    self.signalIM=self.calcInvariantMass(self.signalData)
+    
+    mask_h=self.mixedIM<(self.targetMass+self.targetMass*0.25)
+    mask_l=self.mixedIM>(self.targetMass-self.targetMass*0.25)
+    self.mixedData=self.mixedData[mask_l & mask_h]
+    self.mixedIM=self.mixedIM[mask_l & mask_h]
+
+    mask_h=self.bgIM<(self.targetMass+self.targetMass*0.25)
+    mask_l=self.bgIM>(self.targetMass-self.targetMass*0.25)
+    self.bgData=self.bgData[mask_l & mask_h]
+    self.bgIM=self.bgIM[mask_l & mask_h]
+
+    mask_h=self.signalIM<(self.targetMass+self.targetMass*0.25)
+    mask_l=self.signalIM>(self.targetMass-self.targetMass*0.25)
+    self.signalData=self.signalData[mask_l & mask_h]
+    self.signalIM=self.signalIM[mask_l & mask_h]
+
+  def scale(self):
+    for i in range(len(self.masses)):
+      self.signalData[:,i*3+1]=(self.signalData[:,i*3+1])/3.5
+      self.signalData[:,i*3+2]=(self.signalData[:,i*3+2] + 3.5)/7.0
+
+      self.bgData[:,i*3+1]=(self.bgData[:,i*3+1])/3.5
+      self.bgData[:,i*3+2]=(self.bgData[:,i*3+2] + 3.5)/7.0
+
+      self.mixedData[:,i*3+1]=(self.mixedData[:,i*3+1])/3.5
+      self.mixedData[:,i*3+2]=(self.mixedData[:,i*3+2] + 3.5)/7.0
+
+  def calcInvariantMass(self,arr):
+
+    sumE=0
+    sumPx=0
+    sumPy=0
+    sumPz=0
+
+    for i in range(len(self.masses)):
+      sumPx = sumPx + arr[:,i*3+0]*np.sin(arr[:,i*3+1])*np.cos(arr[:,i*3+2])
+      sumPy = sumPy + arr[:,i*3+0]*np.sin(arr[:,i*3+1])*np.sin(arr[:,i*3+2])
+      sumPz = sumPz + arr[:,i*3+0]*np.cos(arr[:,i*3+1])
+      sumE= sumE + np.sqrt(np.square(arr[:,i*3+0])+self.masses[i]*self.masses[i])
+      
+    IM = np.sqrt(np.square(sumE)- ( np.square(sumPx) + np.square(sumPy) + np.square(sumPz) ))
+    
+    return IM
   
+  def getSignal(self):
+    return self.signalData, self.signalIM
+  
+  def getBackground(self):
+    return self.bgData, self.bgIM
+  
+  def getMixedData(self):
+    return self.mixedData, self.mixedIM
+  
+  def smear(self):
+        
+    rs=np.random.uniform(-0.025,0.025,self.signalData.shape)
+    self.signalData=self.signalData+rs
+
+    rbg=np.random.uniform(-0.025,0.025,self.bgData.shape)
+    self.bgData=self.bgData+rbg
+    
+    self.mixedData=np.vstack((self.bgData,self.signalData))
+    np.random.shuffle(self.mixedData)
+
   def computesWeights(self):
-    mass_dist = self.Data[:,0]
+    
+    #range over which to fit
+    obs = zfit.Space('mass', (self.targetMass-0.25*self.targetMass, self.targetMass+0.25*self.targetMass))
 
-    #print('\n\niMinuit Fit')
-    self.sigFit,self.bgFit,self.yieldsFit = self.iMinuitFit(mass_dist)
+    #gaussian pdf for signal
+    mu = zfit.Parameter('mu', self.targetMass, self.targetMass-0.1*self.targetMass, self.targetMass+0.1*self.targetMass)
+    sigma = zfit.Parameter('sigma',0.025, 0., 10)
+    signal_pdf = zfit.pdf.Gauss(mu=mu, sigma=sigma, obs=obs)
 
-    spdf = lambda m: self.SignalMassPDF(m,self.sigFit[0],self.sigFit[1])
-    bpdf = lambda m: self.BackGPDF(m,self.bgFit)
+    #exponential pdf for background
+    lambd = zfit.Parameter('lambda', -5, -10, 10)
+    comb_bkg_pdf = zfit.pdf.Exponential(lambd, obs=obs)
 
-    # make the sweighter
-    mrange = (self.Mmin,self.Mmax)
+    #range for species yield
+    sig_yield = zfit.Parameter('sig_yield', self.nSignalEvents, 0,  self.nSignalEvents*10,
+                                step_size=1)  # step size: default is small, use appropriate
+    bkg_yield = zfit.Parameter('bkg_yield', self.nBGEvents, 0, self.nBGEvents, step_size=1)
 
-    sweighter = SWeight( mass_dist, [spdf,bpdf], self.yieldsFit, (mrange,), method='summation', compnames=('sig','bkg'), verbose=True, checks=True)
+    # Create the extended models
+    extended_sig = signal_pdf.create_extended(sig_yield)
+    extended_bkg = comb_bkg_pdf.create_extended(bkg_yield)
 
-    self.sigWeights  = sweighter.get_weight(0, mass_dist)
-    self.bgWeights  = sweighter.get_weight(1, mass_dist)
+    # The final model is the combination of the signal and backgrond PDF
+    self.sPlotModel = zfit.pdf.SumPDF([extended_bkg, extended_sig])
 
-    return self.sigWeights,self.bgWeights
-  
-  def fitAsymmetry(self,DataIn,sigWeightsIn):
+    # Builds the loss.
+    self.sPlotData = zfit.Data.from_numpy(obs=obs, array=self.mixedIM)
+    nll_sw = zfit.loss.ExtendedUnbinnedNLL(self.sPlotModel, self.sPlotData)
 
-    mass_dist=DataIn[:,0]
-    sigFit,bgFit,yieldsFit=self.iMinuitFit(mass_dist)
+    # Minimizes the loss.
+    minimizer = zfit.minimize.Minuit(use_minuit_grad=True)
+    result_sw = minimizer.minimize(nll_sw)
+    print(result_sw.params)
 
-    phi_dist = DataIn[:,1]
-    phibins = np.linspace(self.Phmin, self.Phmax, 100)
+    zfit.param.set_values(nll_sw.get_params(), result_sw)
 
-    sig_sumweights, edges = np.histogram( phi_dist, weights=sigWeightsIn, bins=phibins )
-    sig_sumweight_sqrd, edges = np.histogram( phi_dist, weights=sigWeightsIn*sigWeightsIn, bins=phibins )
-    errors = np.sqrt(sig_sumweight_sqrd)
-    centres = (edges[:-1] + edges[1:]) / 2
+    #Use hep-ml to comput weights
+    probs = pandas.DataFrame(dict(sig=self.sPlotModel.get_models()[1].ext_pdf(self.sPlotData), bck=self.sPlotModel.get_models()[0].ext_pdf(self.sPlotData)))
+    probs = probs.div(probs.sum(axis=1), axis=0)  
 
-    c = cost.LeastSquares(centres, sig_sumweights, errors, self.AsymmetryN)
-    m1 = Minuit(c, Sigma=0.1, N=yieldsFit[0]/edges.size )
-    m1.migrad()
+    sWeights = splot.compute_sweights(probs)
+    
+    return sWeights
 
-    print('\nAsymmetry Fit Results: ')
-    #print(m1)
-    print('Sigma='+format(m1.values[0],'.4f')+' +/- '+format(m1.errors[0],'.4f'))
-    print('N='+format(m1.values[1],'.0f')+' +/- '+format(m1.errors[1],'.0f'))
-
-  def scale(self,data):
-    data[:,0]=(data[:,0] - self.Mmin)/(self.Mmax - self.Mmin)
-    data[:,1]=(data[:,1] - self.Phmin)/(self.Phmax - self.Phmin)
-    data[:,2]=(data[:,2] - self.Zmin)/(self.Zmax - self.Zmin)
-    return data
-
-  def unscale(self,data):
-    data[:,0]=(data[:,0] * (self.Mmax - self.Mmin) ) + self.Mmin
-    data[:,1]=(data[:,1] * (self.Phmax - self.Phmin) ) + self.Phmin
-    data[:,2]=(data[:,2] * (self.Zmax - self.Zmin) ) + self.Zmin
-    return data
-     
 
