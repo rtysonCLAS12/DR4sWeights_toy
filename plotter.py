@@ -8,118 +8,130 @@ import numpy as np
 class plotter:
   print_dir=''
   endName=''
-  targetMass=0.1349768
+  ranges=[]
 
-  def __init__(self,t,pd='',en=''):
-    self.targetMass=t
+  names=[]
+  titles=[]
+  units=[]
+
+  def __init__(self,mR,phiR,zR,pd='',en=''):
+    self.ranges.append(mR)
+    self.ranges.append(phiR)
+    self.ranges.append(zR)
     self.print_dir=pd
     self.endName=en
 
-  def plotIMComparison(self,IMSig,IMBG,IMAll):
-    fig = plt.figure(figsize=(20, 20))
-    plt.hist(IMSig, range=[self.targetMass-0.25*self.targetMass,self.targetMass+0.25*self.targetMass],bins=100,color='royalblue',label='Generated Signal')
-    plt.hist(IMBG, range=[self.targetMass-0.25*self.targetMass,self.targetMass+0.25*self.targetMass],bins=100,edgecolor='firebrick',label='Generated Background',hatch='/', histtype='step',fill=False,linewidth=3)
-    plt.hist(IMAll, range=[self.targetMass-0.25*self.targetMass,self.targetMass+0.25*self.targetMass],bins=100,edgecolor='black',color='black',label='All', histtype='step',fill=False,linewidth=3)
-    plt.legend(loc='upper right')
-    plt.xlabel("Invariant Mass [GeV]")
-    plt.title("Invariant Mass")
-    plt.savefig(self.print_dir+'genIM'+self.endName+'.png')
-
-  def plotSWeightedVariables(self,vars,sWeights,sWeightsBG,nPart):
-
-    names=['_P','_Theta','_Phi']
-    titles=['P',r'$\theta$',r'$\phi$']
-    units=['[GeV]','[rad]','[rad]']
-    #lims_l=[0,0,-3.5]
-    #lims_h=[1,3.5,3.5]
-    lims_l=[0,0,0]
-    lims_h=[1,1,1]
+    self.names=['_M','_Phi','_Z']
+    self.titles=['Mass',r'$\phi$','Z']
+    self.units=['[GeV]','[rad]','[]']
 
 
-    for i in range(nPart):
-      for j in range(3):
+  def plotSWeightedVariables(self,vars,sWeights,sWeightsBG,useErrorBars=False):
 
-        pName='_part'+str(i)
-        pTitle='Particle '+str(i)
+    for j in range(3):
 
+      if useErrorBars==False:
         fig = plt.figure(figsize=(20, 20))
-        plt.hist(vars[:,i*3+j], range=[lims_l[j],lims_h[j]],bins=100,color='royalblue',label='sWeights Signal',weights=sWeights)
-        plt.hist(vars[:,i*3+j], range=[lims_l[j],lims_h[j]],bins=100,edgecolor='firebrick',label='sWeights Background',hatch='/', histtype='step',fill=False,linewidth=3,weights=sWeightsBG)
-        plt.hist(vars[:,i*3+j], range=[lims_l[j],lims_h[j]],bins=100,edgecolor='black',color='black',label='All', histtype='step',fill=False,linewidth=3)
+        plt.hist(vars[:,j], range=self.ranges[j],bins=100,color='royalblue',label='sWeights Signal',weights=sWeights)
+        plt.hist(vars[:,j], range=self.ranges[j],bins=100,edgecolor='firebrick',label='sWeights Background',hatch='/', histtype='step',fill=False,linewidth=3,weights=sWeightsBG)
+        plt.hist(vars[:,j], range=self.ranges[j],bins=100,edgecolor='black',color='black',label='All', histtype='step',fill=False,linewidth=3)
         plt.legend(loc='upper right')
-        plt.xlabel(pTitle+' '+titles[j]+' '+units[j])
-        plt.title(pTitle+' '+titles[j])
-        plt.savefig(self.print_dir+'sWeights'+pName+names[j]+self.endName+'.png')
+        ymin, ymax = plt.ylim()
+        if ymin<0:
+          plt.ylim(ymin, ymax * 1.25)
+        else:
+          plt.ylim(0, ymax * 1.25)
+        plt.xlabel(self.titles[j]+' '+self.units[j])
+        plt.title(self.titles[j])
+        plt.savefig(self.print_dir+'sWeights'+self.names[j]+self.endName+'.png')
 
-    fig = plt.figure(figsize=(20, 20))
-    plt.hist(vars[:,-1], range=[self.targetMass-0.25*self.targetMass,self.targetMass+0.25*self.targetMass],bins=100,color='royalblue',label='sWeights Signal',weights=sWeights)
-    plt.hist(vars[:,-1], range=[self.targetMass-0.25*self.targetMass,self.targetMass+0.25*self.targetMass],bins=100,edgecolor='firebrick',label='sWeights Background',hatch='/', histtype='step',fill=False,linewidth=3,weights=sWeightsBG)
-    plt.hist(vars[:,-1], range=[self.targetMass-0.25*self.targetMass,self.targetMass+0.25*self.targetMass],bins=100,edgecolor='black',color='black',label='All', histtype='step',fill=False,linewidth=3)
-    plt.legend(loc='upper right')
-    plt.xlabel("Invariant Mass [GeV]")
-    plt.title("Invariant Mass")
-    plt.savefig(self.print_dir+'sWeights_IM'+self.endName+'.png')
-
-  def plotDRToSWeightComp(self,vars,sWeights,DRWeights,nPart):
-
-    #names=['_Theta','_Phi']
-    #titles=[r'$\theta$',r'$\phi$']
-    #units=['[rad]','[rad]']
-    #lims_l=[0,0]
-    #lims_h=[1,1]
-
-    names=['_P','_Theta','_Phi']
-    titles=['P',r'$\theta$',r'$\phi$']
-    units=['[GeV]','[rad]','[rad]']
-    #lims_l=[0,0,-3.5]
-    #lims_h=[1,3.5,3.5]
-    lims_l=[0,0,0]
-    lims_h=[1,1,1]
-
-    for i in range(nPart):
-      for j in range(3): #2
-
-        pName='_part'+str(i)
-        pTitle='Particle '+str(i)
-
+      else:
         fig = plt.figure(figsize=(20, 20))
-        plt.hist(vars[:,i*3+j], range=[lims_l[j],lims_h[j]],bins=100,color='royalblue',label='sWeights Signal',weights=sWeights) #*2
-        plt.hist(vars[:,i*3+j], range=[lims_l[j],lims_h[j]],bins=100,edgecolor='firebrick',label='Density Ratio Signal',hatch='/', histtype='step',fill=False,linewidth=3,weights=DRWeights)
-        plt.hist(vars[:,i*3+j], range=[lims_l[j],lims_h[j]],bins=100,edgecolor='black',color='black',label='All', histtype='step',fill=False,linewidth=3)
+        nsall, ball = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100)
+        mplhep.histplot(nsall, bins=ball, histtype="errorbar", yerr=True,label="All", color="black",linewidth=3,markersize=25,capsize=7,elinewidth=5)
+        nssig, bsig = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100,weights=sWeights)
+        mplhep.histplot(nssig, bins=bsig, histtype="errorbar", yerr=True,label="sWeights Signal", color="royalblue",linewidth=3,markersize=25,capsize=7,elinewidth=5)
+        nsbg, bbg = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100,weights=sWeightsBG)
+        mplhep.histplot(nsbg, bins=bbg, histtype="errorbar", yerr=True,label="sWeights Background", color="firebrick",linewidth=3,markersize=25,capsize=7,elinewidth=5)
         plt.legend(loc='upper right')
-        plt.xlabel(pTitle+' '+titles[j]+' '+units[j])
-        plt.title(pTitle+' '+titles[j])
-        plt.savefig(self.print_dir+'DRsWeightsComp'+pName+names[j]+self.endName+'.png')
+        ymin, ymax = plt.ylim()
+        if ymin<0:
+          plt.ylim(ymin, ymax * 1.25)
+        else:
+          plt.ylim(0, ymax * 1.25)
+        plt.xlabel(self.titles[j]+' '+self.units[j])
+        plt.title(self.titles[j])
+        plt.savefig(self.print_dir+'sWeights'+self.names[j]+self.endName+'.png')
 
 
-  def plot_fit_projection(self,model, data, nbins=30, ax=None):
+  def plotDRToSWeightComp(self,vars,sWeights,DRWeights,useErrorBars=False):
 
-    fig = plt.figure(figsize=(20, 20))
-    # The function will be reused.
-    if ax is None:
-      ax = plt.gca()
+    for j in range(1,3):
 
-    lower, upper = data.data_range.limit1d
+      nall=[]
+      ball=[]
+      pall=[]
+      nsig=[]
+      bsig=[]
+      psig=[]
+      npred=[]
+      bpred=[]
+      ppred=[]
 
-    # Creates and histogram of the data and plots it with mplhep.
-    counts, bin_edges = np.histogram(data.unstack_x(), bins=nbins)
-    mplhep.histplot(counts, bins=bin_edges, histtype="errorbar", yerr=True,
-                    label="Data", ax=ax, color="black",markersize=25)
+      fig, axs = plt.subplots(2, 1, figsize=(20, 20), sharex=True, sharey=False,tight_layout=True,height_ratios=[2, 1])
+      if useErrorBars==False:
+        nsig,bsig,psig=axs[0].hist(vars[:,j], range=self.ranges[j],bins=100,color='royalblue',label='sWeights Signal',weights=sWeights)
+        npred,bpred,ppred=axs[0].hist(vars[:,j], range=self.ranges[j],bins=100,edgecolor='firebrick',label='Density Ratio Signal',hatch='/', histtype='step',fill=False,linewidth=3,weights=DRWeights)
+        nall,ball,pall=axs[0].hist(vars[:,j], range=self.ranges[j],bins=100,edgecolor='black',color='black',label='All', histtype='step',fill=False,linewidth=3)
+        axs[0].legend(loc='upper right')
+        ymin, ymax = axs[0].get_ylim()
+        if ymin<0:
+          axs[0].set_ylim(ymin, ymax * 1.35)
+        else:
+          axs[0].set_ylim(0, ymax * 1.35)
+        axs[0].set_title(self.titles[j])
 
-    binwidth = np.diff(bin_edges)[0]
-    x = np.linspace(lower, upper, num=1000)  # or np.linspace
+      else:
+        nall, ball = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100)
+        mplhep.histplot(nall, bins=ball, histtype="errorbar", yerr=True,label="All", color="black",linewidth=3,ax=axs[0],markersize=25,capsize=7,elinewidth=5)
+        nsig, bsig = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100,weights=sWeights)
+        mplhep.histplot(nsig, bins=bsig, histtype="errorbar", yerr=True,label="sWeights Signal", color="royalblue",linewidth=3,ax=axs[0],markersize=25,capsize=7,elinewidth=5)
+        npred, bpred = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100,weights=DRWeights)
+        mplhep.histplot(npred, bins=bpred, histtype="errorbar", yerr=True,label="Density Ratio Signal", color="firebrick",linewidth=3,ax=axs[0],markersize=25,capsize=7,elinewidth=5)
+        axs[0].legend(loc='upper right')
+        ymin, ymax = axs[0].get_ylim()
+        if ymin<0:
+          axs[0].set_ylim(ymin, ymax * 1.35)
+        else:
+          axs[0].set_ylim(0, ymax * 1.35)
+        axs[0].set_title(self.titles[j])
 
-    # Line plots of the total pdf and the sub-pdfs.
-    y = model.ext_pdf(x) * binwidth
-    for m, l, c in zip(model.get_models(), ["background", "signal"], ["firebrick", "royalblue"]):
-        ym = m.ext_pdf(x) * binwidth
-        ax.plot(x, ym, label=l, color=c,linewidth=4)
-    ax.plot(x, y, label="total", color="mediumorchid",linewidth=4)
 
-    ax.set_title("Fitted Invariant Mass")
-    ax.set_xlim(lower, upper)
-    ax.set_xlabel("Invariant Mass [GeV]")
-    ax.legend()
-    plt.savefig(self.print_dir+'fittedIM'+self.endName+'.png')
+      res=[]
+      res_err=[]
+      for i in range(len(nsig)):
+        if npred[i]==0:
+          res.append(999)
+          res_err.append(1)
+        elif nsig[i]==0:
+          res.append(999)
+          res_err.append(1)
+        else:
+          res.append(nsig[i]/npred[i])
+          e=res[i]*np.sqrt( np.square((np.sqrt(nsig[i])/nsig[i])) +  np.square((np.sqrt(npred[i])/npred[i])) )
+          res_err.append(e)
 
-    return ax
+      #for difference
+      #res_err=np.sqrt(nsig+npred) #sqrt( sqrt(sig)^2 + sqrt(pred)^2 )
+
+      plotloc=[]
+      for i in range(len(bsig)-1):
+        plotloc.append( (bsig[i+1]-bsig[i])/2 + bsig[i] )
+
+      axs[1].errorbar(x=plotloc, y=res, yerr=res_err,fmt='s', color='mediumorchid',ms=10,capsize=7,elinewidth=3)
+      axs[1].axhline(y = 1.0, color = 'black', linestyle = '--')#,label='1') 
+      axs[1].set_ylim(0, 2)
+      axs[1].set_ylabel('Ratio')
+      plt.xlabel(self.titles[j]+' '+self.units[j])
+      plt.savefig(self.print_dir+'DRsWeights_Comp'+self.names[j]+self.endName+'.png')
+      
