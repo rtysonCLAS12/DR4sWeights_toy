@@ -1,4 +1,6 @@
 *.joblib
 *.png
 *.keras
+*_old*
+*_withComments*
 __pycache__/
