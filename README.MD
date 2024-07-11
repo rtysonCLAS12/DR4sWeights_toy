@@ -1,5 +1,7 @@
 # DR4sWeights_toy
 
+NB: This branch is deprecated and slightly behind master branch. Kept here as example of generating two body decay.
+
 Code exemplifying how to learn sWeights using Decision Trees or Neural Resamplers based on a toy example.
 
 ## Requirements
