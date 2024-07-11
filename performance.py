@@ -146,7 +146,7 @@ class performance:
             boot_weights,bck_weights = gen.computesWeights(boot_data[:,0])
             sigma[iboot],sigma_err[iboot],N[iboot],N_err[iboot],pull_mean[iboot],pull_std[iboot] = self.fitAsymmetrySPlot(gen,boot_data,boot_weights)
 
-        print('sigma ',np.mean(sigma),np.std(sigma),np.mean(sigma_err))
+        print('sigma = ',np.mean(sigma),'sigma std = ',np.std(sigma),'sigma error =',np.mean(sigma_err))
         print('pull mean ',np.mean(pull_mean),np.std(pull_mean))
         print('pull std ',np.mean(pull_std),np.std(pull_std))
 
@@ -250,7 +250,7 @@ class performance:
            # dr_weights= 1 - dr_weights
             #bsigma[iboot],bsigma_err[iboot],bN[iboot],bN_err[iboot],bpull_mean[iboot],bpull_std[iboot] = self.fitAsymmetryDRW(gen,boot_data,dr_weights,boot_weights[:,0].T)
 
-        print('sigma ',np.mean(sigma),np.std(sigma),np.mean(sigma_err))
+        print('sigma = ',np.mean(sigma),'sigma std = ',np.std(sigma),'sigma error =',np.mean(sigma_err))
         print('pull mean ',np.mean(pull_mean),np.std(pull_mean))
         print('pull std ',np.mean(pull_std),np.std(pull_std))
         print('bg sigma ',np.mean(bsigma),np.std(bsigma),np.mean(bsigma_err))
