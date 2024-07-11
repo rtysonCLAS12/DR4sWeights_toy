@@ -189,37 +189,35 @@ class generator:
 
     return self.sigWeights,self.bgWeights
   
-  def fitAsymmetry(self,DataIn,sigWeightsIn):
+  def fitAsymmetry(self,DataIn,sigWeightsIn,sqdWeightsForErrIn,verbose=True):
 
     mass_dist=DataIn[:,0]
-    #sigFit,bgFit,yieldsFit=self.mass_splot_fit(mass_dist)
-    sigFit=self.sigFit
-    bgFit=self.bgFit
-    yieldsFit=self.yieldsFit
+    sigFit,bgFit,yieldsFit=self.mass_splot_fit(mass_dist)
 
     phi_dist = DataIn[:,1]
     phibins = np.linspace(self.Phmin, self.Phmax, 100)
- 
+
     sig_sumweights, edges = np.histogram( phi_dist, weights=sigWeightsIn, bins=phibins )
-    sig_sumweight_sqrd, edges = np.histogram( phi_dist, weights=( sigWeightsIn*sigWeightsIn ), bins=phibins )
+    sig_sumweight_sqrd, edges2 = np.histogram( phi_dist, weights=sqdWeightsForErrIn, bins=phibins ) #sigWeightsIn*sigWeightsIn
     errors = np.sqrt(sig_sumweight_sqrd)
     centres = (edges[:-1] + edges[1:]) / 2
 
-    # print(sig_sumweights)
-    # print(errors)
-
     c = cost.LeastSquares(centres, sig_sumweights, errors, self.AsymmetryN)
-    m1 = Minuit(c, Sigma=0.1, N=yieldsFit[0]/edges.size )
+    m1 = Minuit(c, Sigma=0.1, N=yieldsFit[0]/edges.size)
     m1.migrad()
 
-    print('\nAsymmetry Fit Results: ')
-    #print(m1)
-    print('Sigma='+format(m1.values[0],'.4f')+' +/- '+format(m1.errors[0],'.4f'))
-    print('N='+format(m1.values[1],'.0f')+' +/- '+format(m1.errors[1],'.0f'))
-    print('chi2/N='+format(m1.fval/(phibins.size),'.4f') )
+    if verbose==True:
+      print('\nAsymmetry Fit Results: ')
+      #print(m1)
+      print('Sigma='+format(m1.values[0],'.4f')+' +/- '+format(m1.errors[0],'.4f'))
+      print('N='+format(m1.values[1],'.0f')+' +/- '+format(m1.errors[1],'.0f'))
+      print('chi2/N='+format(m1.fval/(phibins.size),'.4f') )
+      print(np.mean(c.pulls(m1.values)))
+      print(np.std(c.pulls(m1.values))) 
+    
+    chi2=m1.fval/(phibins.size)
 
-    print(np.mean(c.pulls(m1.values)))
-    print(np.std(c.pulls(m1.values)))
+    return m1.values,c.pulls(m1.values),chi2
     
   def scale(self,data):
     data[:,0]=(data[:,0] - self.Mmin)/(self.Mmax - self.Mmin)
