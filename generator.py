@@ -30,7 +30,7 @@ class generator:
   yieldsFit=[]
 
 
-  def __init__(self,MRange,PhRange,ZRange,nEvs):
+  def __init__(self,MRange,PhRange,ZRange,nEvs,generate=True):
     self.Mmin=MRange[0]
     self.Mmax=MRange[1]
     self.Phmin=PhRange[0]
@@ -40,7 +40,8 @@ class generator:
 
     self.nEvents=nEvs
 
-    self.generate()
+    if generate==True:
+      self.generate()
 
   def getData(self):
     return self.Data
@@ -216,6 +217,8 @@ class generator:
       print(np.std(c.pulls(m1.values))) 
     
     chi2=m1.fval/(phibins.size)
+    return m1.values,c.pulls(m1.values),chi2
+
 
     return m1.values,c.pulls(m1.values),chi2
     

@@ -151,10 +151,10 @@ X_test=gener.unscale(X_test)
 pter.plotDRToSWeightComp(X_test,weights_test,weights_DR,plotWithErrorBars)
 
 print('\nFitting sWeighted Asymmetry')
-gener.fitAsymmetry(X_test,weights_test)
+gener.fitAsymmetry(X_test,weights_test,weights_test*weights_test)
 
 print('\nFitting Density Ratio Weighted Asymmetry')
-gener.fitAsymmetry(X_test,weights_DR)
+gener.fitAsymmetry(X_test,weights_DR,weights_test*weights_test)
 
 endT_all = time.time()
 T_all=(endT_all-startT_all)/60
