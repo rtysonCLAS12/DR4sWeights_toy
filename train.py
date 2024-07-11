@@ -1,5 +1,6 @@
 from generator import generator
 from plotter import plotter
+from performance import performance
 
 import numpy as np
 import time as timeCount
@@ -41,7 +42,8 @@ endName='_HistGBDTs'
 
 plotWithErrorBars=False
 
-nEvents=1000000
+nEvents=100000
+#nEvents=10000
 
 mRange=(0,10)
 phiRange=(-np.pi,np.pi)
@@ -64,7 +66,7 @@ print('Generating and preparing data took '+format(T_gen,'.2f')+'s \n\n')
 Data=gener.getData()
 
 print('Computing sWeights...\n')
-sigWeights,bgWeights=gener.computesWeights()
+sigWeights,bgWeights=gener.computesWeights(gener.Data[:,0])
 print('\nDone.\n\n')
 
 #pter.plot_fit_projection(gener.sPlotModel, gener.sPlotData, nbins=100)
@@ -137,6 +139,7 @@ T_test=(endT_test-startT_test)
 
 print('Testing took '+format(T_test,'.4f')+' seconds\n')
 
+
 #we can now calculate the Density Ratio estimated Weights
 y_pred[y_pred==1]=1-0.0000001
 weights_DR = y_pred/(1-y_pred)
@@ -157,3 +160,19 @@ endT_all = time.time()
 T_all=(endT_all-startT_all)/60
 
 print('\nEntire script took '+format(T_all,'.2f')+' minutes\n')
+Data=gener.unscale(Data)
+
+perform=performance()
+##perform.fitAsymmetryDRW(gener,X_test,weights_DR)
+startT_boot = time.time()
+#perform.do_bootstrap_fits(100,gener,X_test,weights_DR)
+print('\nFitting sWeighted Asymmetry')
+#perform.do_bootstrap_splot(12,gener)
+print('\nFitting drWeighted Asymmetry')
+perform.do_bootstrap_splot4dr(12,gener)
+endT_boot = time.time()
+T_boot=(endT_boot-startT_boot)/60
+print('\nBootstraps took '+format(T_boot,'.2f')+' minutes\n')
+
+print('\nFitting sWeighted Asymmetry')
+#gener.fitAsymmetry(X_test,weights_test)
