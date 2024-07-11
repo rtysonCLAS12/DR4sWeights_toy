@@ -30,7 +30,7 @@ class generator:
   yieldsFit=[]
 
 
-  def __init__(self,MRange,PhRange,ZRange,nEvs):
+  def __init__(self,MRange,PhRange,ZRange,nEvs,generate=True):
     self.Mmin=MRange[0]
     self.Mmax=MRange[1]
     self.Phmin=PhRange[0]
@@ -40,7 +40,8 @@ class generator:
 
     self.nEvents=nEvs
 
-    self.generate()
+    if generate==True:
+      self.generate()
 
   def getData(self):
     return self.Data
@@ -190,7 +191,7 @@ class generator:
 
     return self.sigWeights,self.bgWeights
   
-  def fitAsymmetry(self,DataIn,sigWeightsIn):
+  def fitAsymmetry(self,DataIn,sigWeightsIn,sqdWeightsForErrIn,verbose=True):
 
     mass_dist=DataIn[:,0]
     sigFit,bgFit,yieldsFit=self.iMinuitFit(mass_dist)
@@ -199,18 +200,23 @@ class generator:
     phibins = np.linspace(self.Phmin, self.Phmax, 100)
 
     sig_sumweights, edges = np.histogram( phi_dist, weights=sigWeightsIn, bins=phibins )
-    sig_sumweight_sqrd, edges = np.histogram( phi_dist, weights=sigWeightsIn*sigWeightsIn, bins=phibins )
+    sig_sumweight_sqrd, edges2 = np.histogram( phi_dist, weights=sqdWeightsForErrIn, bins=phibins ) #sigWeightsIn*sigWeightsIn
     errors = np.sqrt(sig_sumweight_sqrd)
     centres = (edges[:-1] + edges[1:]) / 2
 
     c = cost.LeastSquares(centres, sig_sumweights, errors, self.AsymmetryN)
-    m1 = Minuit(c, Sigma=0.1, N=yieldsFit[0]/edges.size )
+    m1 = Minuit(c, Sigma=0.1, N=yieldsFit[0]/edges.size)
     m1.migrad()
 
-    print('\nAsymmetry Fit Results: ')
-    #print(m1)
-    print('Sigma='+format(m1.values[0],'.4f')+' +/- '+format(m1.errors[0],'.4f'))
-    print('N='+format(m1.values[1],'.0f')+' +/- '+format(m1.errors[1],'.0f'))
+    if verbose==True:
+      print('\nAsymmetry Fit Results: ')
+      #print(m1)
+      print('Sigma='+format(m1.values[0],'.4f')+' +/- '+format(m1.errors[0],'.4f'))
+      print('N='+format(m1.values[1],'.0f')+' +/- '+format(m1.errors[1],'.0f'))
+    
+    chi2=(0.8-m1.values[0])**2/0.8
+
+    return m1.values,c.pulls(m1.values),chi2
 
   def scale(self,data):
     data[:,0]=(data[:,0] - self.Mmin)/(self.Mmax - self.Mmin)

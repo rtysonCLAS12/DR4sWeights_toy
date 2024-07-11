@@ -18,12 +18,13 @@ class plotter:
     self.ranges.append(mR)
     self.ranges.append(phiR)
     self.ranges.append(zR)
+    self.ranges.append((-1,1)) #to plot weights
     self.print_dir=pd
     self.endName=en
 
-    self.names=['_M','_Phi','_Z']
-    self.titles=['Mass',r'$\phi$','Z']
-    self.units=['[GeV]','[rad]','[]']
+    self.names=['_M','_Phi','_Z','_weights']
+    self.titles=['Mass',r'$\phi$','Z','Weights']
+    self.units=['[GeV]','[rad]','','']
 
 
   def plotSWeightedVariables(self,vars,sWeights,sWeightsBG,useErrorBars=False):
@@ -62,6 +63,33 @@ class plotter:
         plt.xlabel(self.titles[j]+' '+self.units[j])
         plt.title(self.titles[j])
         plt.savefig(self.print_dir+'sWeights'+self.names[j]+self.endName+'.png')
+
+  def plotWeights(self,weightsSig,weightsDR,useErrorBars=False):
+    j=3
+    if useErrorBars==False:
+      fig = plt.figure(figsize=(20, 20))
+      plt.hist(weightsSig, range=self.ranges[j],bins=100,color='royalblue',label='sWeights Signal')
+      plt.hist(weightsDR, range=self.ranges[j],bins=100,edgecolor='firebrick',label='Density Ratio Signal',hatch='/', histtype='step',fill=False,linewidth=3)
+      plt.legend(loc='upper right')
+      plt.yscale("log")   
+      ymin, ymax = plt.ylim()
+      plt.ylim(0.01, ymax * 10)
+      plt.xlabel(self.titles[j]+' '+self.units[j])
+      plt.title(self.titles[j])
+      plt.savefig(self.print_dir+'Comp'+self.names[j]+self.endName+'.png')
+    else:
+      fig = plt.figure(figsize=(20, 20))
+      nssig, bsig = np.histogram(weightsSig,range=(self.ranges[j][0],self.ranges[j][1]), bins=100)
+      mplhep.histplot(nssig, bins=bsig, histtype="errorbar", yerr=True,label="sWeights Signal", color="royalblue",linewidth=3,markersize=25,capsize=7,elinewidth=5)
+      nsbg, bbg = np.histogram(weightsDR,range=(self.ranges[j][0],self.ranges[j][1]), bins=100)
+      mplhep.histplot(nsbg, bins=bbg, histtype="errorbar", yerr=True,label="Density Ratio Signal", color="firebrick",linewidth=3,markersize=25,capsize=7,elinewidth=5)
+      plt.legend(loc='upper right')
+      plt.yscale("log")   
+      ymin, ymax = plt.ylim()
+      plt.ylim(10, ymax * 10)
+      plt.xlabel(self.titles[j]+' '+self.units[j])
+      plt.title(self.titles[j])
+      plt.savefig(self.print_dir+'Comp'+self.names[j]+self.endName+'.png')
 
 
   def plotDRToSWeightComp(self,vars,sWeights,DRWeights,useErrorBars=False):
@@ -109,29 +137,24 @@ class plotter:
 
       res=[]
       res_err=[]
-      for i in range(len(nsig)):
-        if npred[i]==0:
-          res.append(999)
-          res_err.append(1)
-        elif nsig[i]==0:
-          res.append(999)
-          res_err.append(1)
-        else:
-          res.append(nsig[i]/npred[i])
-          e=res[i]*np.sqrt( np.square((np.sqrt(nsig[i])/nsig[i])) +  np.square((np.sqrt(npred[i])/npred[i])) )
-          res_err.append(e)
-
-      #for difference
-      #res_err=np.sqrt(nsig+npred) #sqrt( sqrt(sig)^2 + sqrt(pred)^2 )
-
       plotloc=[]
-      for i in range(len(bsig)-1):
-        plotloc.append( (bsig[i+1]-bsig[i])/2 + bsig[i] )
-
+      for i in range(len(nsig)):
+        if (npred[i]!=0) or (nsig[i]!=0):
+          #res.append(nsig[i]/npred[i])
+          #e=res[i]*np.sqrt( np.square((np.sqrt(nsig[i])/nsig[i])) +  np.square((np.sqrt(npred[i])/npred[i])) ) #error for ratio
+          std=np.sqrt(nsig[i] + npred[i]) #sum of squares of sqrt(nsig) and sqrt(npred)
+          res.append((nsig[i]-npred[i])/std)
+          res_err.append(0) #what's error on pull?
+          plotloc.append( (bsig[i+1]-bsig[i])/2 + bsig[i] )
+        
       axs[1].errorbar(x=plotloc, y=res, yerr=res_err,fmt='s', color='mediumorchid',ms=10,capsize=7,elinewidth=3)
-      axs[1].axhline(y = 1.0, color = 'black', linestyle = '--')#,label='1') 
-      axs[1].set_ylim(0, 2)
-      axs[1].set_ylabel('Ratio')
+      axs[1].axhline(y = 0.0, color = 'black', linestyle = '--')#,label='1') 
+      axs[1].axhline(y = -1.0, color = 'grey', linestyle = '--')#,label='1') 
+      axs[1].axhline(y = 1.0, color = 'grey', linestyle = '--')#,label='1') 
+      axs[1].axhline(y = -2.0, color = 'silver', linestyle = '--')#,label='1') 
+      axs[1].axhline(y = 2.0, color = 'silver', linestyle = '--')#,label='1') 
+      axs[1].set_ylim(-5, 5)
+      axs[1].set_ylabel('Pull')
       plt.xlabel(self.titles[j]+' '+self.units[j])
       plt.savefig(self.print_dir+'DRsWeights_Comp'+self.names[j]+self.endName+'.png')
       

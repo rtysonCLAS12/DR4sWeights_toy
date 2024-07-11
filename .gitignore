@@ -3,4 +3,7 @@
 *.keras
 *_old*
 *_withComments*
+for_test_*
 __pycache__/
+data/*
+data
