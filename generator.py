@@ -138,8 +138,7 @@ class generator:
   def CombinedMassNExt(self,xmass,smean,swidth,bc0,bc1,bc2,Ys,Yb):
     return ((Ys+Yb),Ys*self.SignalMassPDF(xmass,smean,swidth)+Yb*self.BackGPDF(xmass,[bc0,bc1,bc2]))
   
-  def iMinuitFit(self,mass_dist):
-
+  def mass_splot_fit(self,mass_dist):
     Ndata = mass_dist.size
     mi = Minuit( ExtendedUnbinnedNLL(mass_dist, self.CombinedMassNExt), smean=5, swidth=0.5,bc0=0.6,bc1=0.2,bc2=0, Ys=Ndata/2,Yb=Ndata/2 )
     mi.limits['Yb'] = (0,Ndata*1.1)
@@ -172,11 +171,11 @@ class generator:
     return [sg_mean,sg_width],[bg_c0,bg_c1,bg_c2],[Ysignal,Yback]
 
   
-  def computesWeights(self):
-    mass_dist = self.Data[:,0]
+  def computesWeights(self,mass_dist):
+    #mass_dist = self.Data[:,0]
 
     #print('\n\niMinuit Fit')
-    self.sigFit,self.bgFit,self.yieldsFit = self.iMinuitFit(mass_dist)
+    self.sigFit,self.bgFit,self.yieldsFit = self.mass_splot_fit(mass_dist)
 
     spdf = lambda m: self.SignalMassPDF(m,self.sigFit[0],self.sigFit[1])
     bpdf = lambda m: self.BackGPDF(m,self.bgFit)
@@ -194,7 +193,7 @@ class generator:
   def fitAsymmetry(self,DataIn,sigWeightsIn,sqdWeightsForErrIn,verbose=True):
 
     mass_dist=DataIn[:,0]
-    sigFit,bgFit,yieldsFit=self.iMinuitFit(mass_dist)
+    sigFit,bgFit,yieldsFit=self.mass_splot_fit(mass_dist)
 
     phi_dist = DataIn[:,1]
     phibins = np.linspace(self.Phmin, self.Phmax, 100)
@@ -213,11 +212,16 @@ class generator:
       #print(m1)
       print('Sigma='+format(m1.values[0],'.4f')+' +/- '+format(m1.errors[0],'.4f'))
       print('N='+format(m1.values[1],'.0f')+' +/- '+format(m1.errors[1],'.0f'))
+      print('chi2/N='+format(m1.fval/(phibins.size),'.4f') )
+      print(np.mean(c.pulls(m1.values)))
+      print(np.std(c.pulls(m1.values))) 
     
-    chi2=(0.8-m1.values[0])**2/0.8
-
+    chi2=m1.fval/(phibins.size)
     return m1.values,c.pulls(m1.values),chi2
 
+
+    return m1.values,c.pulls(m1.values),chi2
+    
   def scale(self,data):
     data[:,0]=(data[:,0] - self.Mmin)/(self.Mmax - self.Mmin)
     data[:,1]=(data[:,1] - self.Phmin)/(self.Phmax - self.Phmin)
