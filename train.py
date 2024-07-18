@@ -1,6 +1,7 @@
 from generator import generator
 from plotter import plotter
 from performance import performance
+from trainer import trainer
 
 import numpy as np
 import time as timeCount
@@ -13,8 +14,17 @@ import time
 
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import ExtraTreesClassifier
+
+from sklearn.base import clone
 
 from joblib import dump, load
+
+def rejection_sample(weights):
+    nev=weights.shape[0]
+    rands = np.random.uniform(0, 1, nev)
+    mask = rands[:] < weights[:]
+    return mask.astype(int) 
 
 plt.rcParams.update({'font.size': 40,
                     #'font.family':  'Times New Roman',
@@ -37,10 +47,11 @@ startT_all = time.time()
 
 #plots outputted to print_dir
 #append endName to end of plots to avoid overwriting plots
-print_dir=''
-endName='_HistGBDTs' 
+print_dir='/w/work/clas12/tyson/plots/aiDataAcceptance/toy_DR4sWeights/vars/'
+endName='_test' 
 
-plotWithErrorBars=False
+plotWithErrorBars=True
+doFineTune=True
 
 nEvents=100000
 #nEvents=10000
@@ -72,79 +83,40 @@ print('\nDone.\n\n')
 #pter.plot_fit_projection(gener.sPlotModel, gener.sPlotData, nbins=100)
 pter.plotSWeightedVariables(Data,sigWeights,bgWeights,plotWithErrorBars)
 
-sigWeights=np.asarray(sigWeights).reshape((Data.shape[0],1))
+sigWeights=np.asarray(sigWeights)#.reshape((Data.shape[0],1))
 
 Data=gener.scale(Data)
 
-#training data is composed of twice the data
-#weighted with sWeights and by one
-Xall=np.vstack((Data,Data))
-weights=np.vstack((sigWeights,np.ones((Data.shape[0],1)))).reshape((Xall.shape[0]))
-Yall=np.vstack((np.ones((Data.shape[0],1)),np.zeros((Data.shape[0],1)))).reshape((Xall.shape[0]))
-
-#shuffle in unison
-p = np.random.permutation(Xall.shape[0])
-Xall=Xall[p]
-Yall=Yall[p]
-weights=weights[p]
-
 #split into training and testing sets
-nTrain=math.ceil(0.7*(Xall.shape[0]))
-X_train=Xall[:nTrain,:]
-X_test=Xall[nTrain:,:]
+nTrain=math.ceil(0.7*(Data.shape[0]))
+X_train=Data[:nTrain,:]
+X_test=Data[nTrain:,:]
 
-y_train=Yall[:nTrain]
-y_test=Yall[nTrain:]
-
-weights_train=weights[:nTrain]
-weights_test=weights[nTrain:]
+weights_train=sigWeights[:nTrain]#.reshape((X_train))
+weights_test=sigWeights[nTrain:]#.reshape((X_test))
 
 #both GradientBoosting and HistGradientBoosting work well
 #HistGradientBoosting is much faster
 
-model = HistGradientBoostingClassifier(max_depth=10)
-#model = GradientBoostingClassifier(max_depth=10)
+#base_model = HistGradientBoostingClassifier(max_depth=10)
+base_model = GradientBoostingClassifier(max_depth=10)
+#base_model = ExtraTreesClassifier(max_features=None,criterion='log_loss')
 
-print('Training with '+str(X_train.shape[0])+' events...')
+base_model2 = HistGradientBoostingClassifier(max_depth=10)
+#base_model2 = GradientBoostingClassifier(max_depth=10)
+#base_model2 = ExtraTreesClassifier(max_features=None,criterion='log_loss')
 
-#train model
-startT_train = time.time()
+bms=[base_model,base_model2]
 
-#don't include mass at var 0 in fit
-model.fit(X_train[:,1:],y_train,sample_weight=weights_train)
+trer=trainer(bms)
 
-endT_train = time.time()
-T_train=(endT_train-startT_train)/60
+print('Training with '+str(X_train.shape[0]*2)+' events...')
 
-print('Training took '+format(T_train,'.2f')+' minutes\n')
-
-#save model
-dump(model,'model'+endName+'.joblib')
-
-#to compare to sWeights we want to only predict
-#on the sWeighted subset of the training data
-X_test=X_test[y_test==1]
-weights_test=weights_test[y_test==1]
-y_test=y_test[y_test==1]
+trer.train(X_train,weights_train)
 
 print('Test with '+str(X_test.shape[0])+' events...')
 
-#test model
-startT_test = time.time()
-
-y_pred=model.predict_proba(X_test[:,1:])[:,1]
-
-endT_test = time.time()
-T_test=(endT_test-startT_test)
-
-print('Testing took '+format(T_test,'.4f')+' seconds\n')
-
-
-#we can now calculate the Density Ratio estimated Weights
-y_pred[y_pred==1]=1-0.0000001
-weights_DR = y_pred/(1-y_pred)
-weights_DR=np.nan_to_num(weights_DR, nan=1, posinf=1, neginf=1)
-weights_DR[weights_DR>1]=1 #some weights blow up
+weights_DR=trer.predict(X_test)
 
 X_test=gener.unscale(X_test)
 
@@ -156,23 +128,48 @@ gener.fitAsymmetry(X_test,weights_test,weights_test*weights_test)
 print('\nFitting Density Ratio Weighted Asymmetry')
 gener.fitAsymmetry(X_test,weights_DR,weights_test*weights_test)
 
-endT_all = time.time()
-T_all=(endT_all-startT_all)/60
 
-print('\nEntire script took '+format(T_all,'.2f')+' minutes\n')
+nPerfIt=50
+
+#performance assumes unscaled data!!
 Data=gener.unscale(Data)
 
-perform=performance()
-##perform.fitAsymmetryDRW(gener,X_test,weights_DR)
+perform=performance(trer)
 startT_boot = time.time()
-#perform.do_bootstrap_fits(100,gener,X_test,weights_DR)
-print('\nFitting sWeighted Asymmetry')
-#perform.do_bootstrap_splot(12,gener)
-print('\nFitting drWeighted Asymmetry')
-perform.do_bootstrap_splot4dr(12,gener)
+print('\n\nBootStrap sWeighted Asymmetry\n\n')
+
+perfBTSplot = perform.do_bootstrap_splot(nPerfIt,gener)
+
+print('\n\nBootStrap drWeighted Asymmetry\n\n')
+
+perfBTDR = perform.do_bootstrap_dr(nPerfIt,gener)
+
 endT_boot = time.time()
 T_boot=(endT_boot-startT_boot)/60
 print('\nBootstraps took '+format(T_boot,'.2f')+' minutes\n')
 
-print('\nFitting sWeighted Asymmetry')
-#gener.fitAsymmetry(X_test,weights_test)
+pter.plotPerformanceResults(perfBTSplot,perfBTDR,'BootStrap')
+
+startT_loop = time.time()
+print('\n\nLoop sWeighted Asymmetry\n\n')
+
+perfLoopSplot, perfLoopDR = perform.do_loop(nPerfIt,gener)
+
+endT_loop = time.time()
+T_loop=(endT_loop-startT_loop)/60
+print('\nLoops took '+format(T_loop,'.2f')+' minutes\n')
+
+pter.plotPerformanceResults(perfLoopSplot,perfLoopDR,'')
+
+print('\n\n\n\n Test Summaries:')
+perform.print_summary(perfBTSplot,'sPlot','BootStrap')
+perform.print_summary(perfBTDR,'DR','BootStrap')
+perform.print_summary(perfLoopSplot,'sPlot','Loop')
+perform.print_summary(perfLoopDR,'DR','Loop')
+
+
+endT_all = time.time()
+T_all=(endT_all-startT_all)/60
+
+print('\nEntire script took '+format(T_all,'.2f')+' minutes\n')
+

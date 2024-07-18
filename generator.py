@@ -44,7 +44,7 @@ class generator:
       self.generate()
 
   def getData(self):
-    return self.Data
+    return self.Data.copy()
 
   #Unormalised Asymmetry
   def AsymmetryN(self,xphi,Sigma,N):
@@ -78,7 +78,7 @@ class generator:
     return val/integ
   
   def TruePDF(self,m,ph,z):
-    return self.SignalMassPDF(m,5,0.5)*self.AsymmetryPDF(ph,0.8) + 2*self.BackGPDF(m,[0.6,0.2])*self.AsymmetryPDF(ph,-0.2)
+    return self.SignalMassPDF(m,5,0.5)*self.AsymmetryPDF(ph,0.8) + 9*self.BackGPDF(m,[0.6,0.2])*self.AsymmetryPDF(ph,-0.2)
 
   def generate_event(self,gen_max_val,nEvs):
     x = np.random.uniform(self.Mmin,self.Mmax,nEvs)
@@ -213,8 +213,8 @@ class generator:
       print('Sigma='+format(m1.values[0],'.4f')+' +/- '+format(m1.errors[0],'.4f'))
       print('N='+format(m1.values[1],'.0f')+' +/- '+format(m1.errors[1],'.0f'))
       print('chi2/N='+format(m1.fval/(phibins.size),'.4f') )
-      print(np.mean(c.pulls(m1.values)))
-      print(np.std(c.pulls(m1.values))) 
+      print('fit pull mean '+format(np.mean(c.pulls(m1.values)),'.4f'))
+      print('fit pull std '+format(np.std(c.pulls(m1.values)),'.4f')) 
     
     chi2=m1.fval/(phibins.size)
     return m1.values,c.pulls(m1.values),chi2

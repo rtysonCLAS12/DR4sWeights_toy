@@ -157,4 +157,25 @@ class plotter:
       axs[1].set_ylabel('Pull')
       plt.xlabel(self.titles[j]+' '+self.units[j])
       plt.savefig(self.print_dir+'DRsWeights_Comp'+self.names[j]+self.endName+'.png')
+
+  def plotPerformanceResults(self,perf,perfDR,testName):
+
+    title=['Asymmetry','Asymmetry Uncertainty','Mean of Pulls','Standard Deviation of Pulls',r'$\chi^{2}$']
+    name=['asym','asymErr','pull','stdpull','chi2']
+    ranges=[(0.65,0.95),(0,0.2),(-0.1,0.1),(0,5),(0.0,5)]
+
+    for i in range(perf.shape[1]):
+      fig = plt.figure(figsize=(20, 20))
+      plt.hist(perf[:,i], range=ranges[i],bins=20,color='royalblue',label='sWeights Signal')
+      plt.hist(perfDR[:,i], range=ranges[i],bins=20,edgecolor='firebrick',label='Density Ratio Signal',hatch='/', histtype='step',fill=False,linewidth=3)
+      plt.legend(loc='upper right')
+      ymin, ymax = plt.ylim()
+      plt.ylim(0, ymax * 1.25)
+      plt.xlabel(title[i])
+      if testName=='':
+        plt.title(title[i])
+        plt.savefig(self.print_dir+'loop_'+name[i]+self.endName+'.png')
+      else:
+        plt.title(title[i]+' ('+testName+')')
+        plt.savefig(self.print_dir+testName+'_'+name[i]+self.endName+'.png')
       
