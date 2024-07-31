@@ -20,7 +20,7 @@ train.py shows an example of how the density ratio estimation technique can be d
 
 **N.B.:** train.py will output plots to your current directory. At the top of the script you can change the print_dir variable to change the location where the plots are written. You can change the endName variable so that plots are saved as name_endName.png to avoid overwritting plots. By default train.py will save plots as name_GBDTs.png.
 
-In the background, train.py calls on several classes. The plotter class produces plots, the generator class generates the toy data, the performance class does the boostrapping and repeated tests, and the trainer class trains the models. These scripts should not have to be altered, except the to tweak the neural network implementation. This can be found at the top of the trainer class.
+In the background, train.py calls on several classes. The plotter class produces plots, the generator class generates the toy data, the performance class does the boostrapping and repeated tests, and the trainer class trains the models. These scripts should not have to be altered, except to tweak the neural network implementation. This can be found at the top of the trainer class.
 
 
 
