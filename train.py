@@ -18,6 +18,8 @@ from sklearn.ensemble import ExtraTreesClassifier
 
 from sklearn.base import clone
 
+from energyflow.archs import PFN
+
 from joblib import dump, load
 
 def rejection_sample(weights):
@@ -47,28 +49,51 @@ startT_all = time.time()
 
 #plots outputted to print_dir
 #append endName to end of plots to avoid overwriting plots
-print_dir='/w/work/clas12/tyson/plots/aiDataAcceptance/toy_DR4sWeights/vars/'
-endName='_test' 
+print_dir=''
+endName='_GBDTs' 
 
+print('\nPlots will be written to directory: '+print_dir)
+print('Plot names formatted as name'+endName+'.pdf\n\n')
+
+#change plotting style
 plotWithErrorBars=True
-doFineTune=True
 
-nEvents=100000
+#change number of generated events
+nEvents=500000
 #nEvents=10000
 
+#change signal to background ratio
+BGtoSigRatio=(9,1)
+
+#variable ranges
 mRange=(0,10)
 phiRange=(-np.pi,np.pi)
 ZRange=(-1,1)
 
-print('\nPlots will be written to directory: '+print_dir)
-print('Plot names formatted as name'+endName+'.pdf\n\n')
+#if nPerfIt=N with N!=0, this script will do bootstrapping 
+#and repeate the data generation and training N times
+nPerfIt=0
+
+#both GradientBoosting and HistGradientBoosting work well
+#HistGradientBoosting is much faster
+
+base_model = GradientBoostingClassifier(max_depth=10)
+
+#base_model2 = HistGradientBoostingClassifier(max_depth=10)
+base_model2 = GradientBoostingClassifier(max_depth=10)
+
+bms=[base_model,base_model2]
+
+#use a by default neural network with 'NN'
+#the network can be changed in the trainer.py class
+#bms=['NN',GradientBoostingClassifier(max_depth=10)]
 
 pter=plotter(mRange,phiRange,ZRange,print_dir,endName)
 
 print('Generating data...')
 startT_gen = time.time()
 
-gener=generator(mRange,phiRange,ZRange,nEvents)
+gener=generator(mRange,phiRange,ZRange,nEvents,BGtoSig=BGtoSigRatio)
 
 endT_gen = time.time()
 T_gen=endT_gen-startT_gen
@@ -95,19 +120,6 @@ X_test=Data[nTrain:,:]
 weights_train=sigWeights[:nTrain]#.reshape((X_train))
 weights_test=sigWeights[nTrain:]#.reshape((X_test))
 
-#both GradientBoosting and HistGradientBoosting work well
-#HistGradientBoosting is much faster
-
-#base_model = HistGradientBoostingClassifier(max_depth=10)
-base_model = GradientBoostingClassifier(max_depth=10)
-#base_model = ExtraTreesClassifier(max_features=None,criterion='log_loss')
-
-base_model2 = HistGradientBoostingClassifier(max_depth=10)
-#base_model2 = GradientBoostingClassifier(max_depth=10)
-#base_model2 = ExtraTreesClassifier(max_features=None,criterion='log_loss')
-
-bms=[base_model,base_model2]
-
 trer=trainer(bms)
 
 print('Training with '+str(X_train.shape[0]*2)+' events...')
@@ -128,45 +140,42 @@ gener.fitAsymmetry(X_test,weights_test,weights_test*weights_test)
 print('\nFitting Density Ratio Weighted Asymmetry')
 gener.fitAsymmetry(X_test,weights_DR,weights_test*weights_test)
 
-
-nPerfIt=50
-
 #performance assumes unscaled data!!
-Data=gener.unscale(Data)
+if nPerfIt!=0:
+  Data=gener.unscale(Data)
 
-perform=performance(trer)
-startT_boot = time.time()
-print('\n\nBootStrap sWeighted Asymmetry\n\n')
+  perform=performance(trer)
+  startT_boot = time.time()
+  print('\n\nBootStrap sWeighted Asymmetry\n\n')
 
-perfBTSplot = perform.do_bootstrap_splot(nPerfIt,gener)
+  perfBTSplot = perform.do_bootstrap_splot(nPerfIt,gener)
 
-print('\n\nBootStrap drWeighted Asymmetry\n\n')
+  print('\n\nBootStrap drWeighted Asymmetry\n\n')
 
-perfBTDR = perform.do_bootstrap_dr(nPerfIt,gener)
+  perfBTDR = perform.do_bootstrap_dr(nPerfIt,gener)
 
-endT_boot = time.time()
-T_boot=(endT_boot-startT_boot)/60
-print('\nBootstraps took '+format(T_boot,'.2f')+' minutes\n')
+  endT_boot = time.time()
+  T_boot=(endT_boot-startT_boot)/60
+  print('\nBootstraps took '+format(T_boot,'.2f')+' minutes\n')
 
-pter.plotPerformanceResults(perfBTSplot,perfBTDR,'BootStrap')
+  pter.plotPerformanceResults(perfBTSplot,perfBTDR,'BootStrap')
 
-startT_loop = time.time()
-print('\n\nLoop sWeighted Asymmetry\n\n')
+  startT_loop = time.time()
+  print('\n\nLoop sWeighted Asymmetry\n\n')
 
-perfLoopSplot, perfLoopDR = perform.do_loop(nPerfIt,gener)
+  perfLoopSplot, perfLoopDR = perform.do_loop(nPerfIt,gener)
 
-endT_loop = time.time()
-T_loop=(endT_loop-startT_loop)/60
-print('\nLoops took '+format(T_loop,'.2f')+' minutes\n')
+  endT_loop = time.time()
+  T_loop=(endT_loop-startT_loop)/60
+  print('\nLoops took '+format(T_loop,'.2f')+' minutes\n')
 
-pter.plotPerformanceResults(perfLoopSplot,perfLoopDR,'')
+  pter.plotPerformanceResults(perfLoopSplot,perfLoopDR,'')
 
-print('\n\n\n\n Test Summaries:')
-perform.print_summary(perfBTSplot,'sPlot','BootStrap')
-perform.print_summary(perfBTDR,'DR','BootStrap')
-perform.print_summary(perfLoopSplot,'sPlot','Loop')
-perform.print_summary(perfLoopDR,'DR','Loop')
-
+  print('\n\n\n\n Test Summaries:')
+  perform.print_summary(perfBTSplot,'sPlot','BootStrap')
+  perform.print_summary(perfBTDR,'DR','BootStrap')
+  perform.print_summary(perfLoopSplot,'sPlot','Loop')
+  perform.print_summary(perfLoopDR,'DR','Loop')
 
 endT_all = time.time()
 T_all=(endT_all-startT_all)/60

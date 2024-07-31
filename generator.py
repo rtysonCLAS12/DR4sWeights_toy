@@ -29,8 +29,12 @@ class generator:
   bgFit=[]
   yieldsFit=[]
 
+  freq=2
+  verbose=True
+  BGtoSig=(2,1)
 
-  def __init__(self,MRange,PhRange,ZRange,nEvs,generate=True):
+
+  def __init__(self,MRange,PhRange,ZRange,nEvs,BGtoSig=(2,1),frequency=2,generate=True,verbose=True):
     self.Mmin=MRange[0]
     self.Mmax=MRange[1]
     self.Phmin=PhRange[0]
@@ -39,6 +43,9 @@ class generator:
     self.Zmax=ZRange[1]
 
     self.nEvents=nEvs
+    self.verbose=verbose
+    self.BGtoSig=BGtoSig
+    self.freq=frequency
 
     if generate==True:
       self.generate()
@@ -52,7 +59,7 @@ class generator:
 
   #Asymmetry PDF
   def AsymmetryPDF(self,xphi,Sigma):
-    return (1 - Sigma*np.cos(2*xphi))/(self.Phmax-self.Phmin)
+    return (1 - Sigma*np.cos(self.freq*xphi))/(self.Phmax-self.Phmin)
   
   def SignalMassPDF(self,xmass,mean,width):
     sig  = norm(mean,width)
@@ -78,7 +85,7 @@ class generator:
     return val/integ
   
   def TruePDF(self,m,ph,z):
-    return self.SignalMassPDF(m,5,0.5)*self.AsymmetryPDF(ph,0.8) + 9*self.BackGPDF(m,[0.6,0.2])*self.AsymmetryPDF(ph,-0.2)
+    return self.BGtoSig[1]*self.SignalMassPDF(m,5,0.5)*self.AsymmetryPDF(ph,0.8) + self.BGtoSig[0]*self.BackGPDF(m,[0.6,0.2])*self.AsymmetryPDF(ph,-0.2)
 
   def generate_event(self,gen_max_val,nEvs):
     x = np.random.uniform(self.Mmin,self.Mmax,nEvs)
@@ -115,10 +122,11 @@ class generator:
 
     while self.Data.shape[0]<self.nEvents:
 
-      if self.Data.shape[0]!=1:
-        fin_time = timeCount.time()
-        tdif=fin_time-start_time
-        print('Generated '+str(self.Data.shape[0])+' signal events out of '+str(self.nEvents)+' in '+format(tdif,'.2f')+'s')
+      if self.verbose==True:
+        if self.Data.shape[0]!=1:
+          fin_time = timeCount.time()
+          tdif=fin_time-start_time
+          print('Generated '+str(self.Data.shape[0])+' events out of '+str(self.nEvents)+' in '+format(tdif,'.2f')+'s')
 
       x,y,z=self.generate_event(gen_max_val,self.nEvents)
 
@@ -133,7 +141,8 @@ class generator:
 
     self.Data=self.Data[0:self.nEvents,:]
 
-    print('Generated all '+str(self.nEvents)+' events in '+format(tdif,'.2f')+'s')
+    if self.verbose==True:
+      print('Generated '+str(self.nEvents)+' events in '+format(tdif,'.2f')+'s')
 
   def CombinedMassNExt(self,xmass,smean,swidth,bc0,bc1,bc2,Ys,Yb):
     return ((Ys+Yb),Ys*self.SignalMassPDF(xmass,smean,swidth)+Yb*self.BackGPDF(xmass,[bc0,bc1,bc2]))
@@ -183,14 +192,14 @@ class generator:
     # make the sweighter
     mrange = (self.Mmin,self.Mmax)
 
-    sweighter = SWeight( mass_dist, [spdf,bpdf], self.yieldsFit, (mrange,), method='summation', compnames=('sig','bkg'), verbose=True, checks=True)
+    sweighter = SWeight( mass_dist, [spdf,bpdf], self.yieldsFit, (mrange,), method='summation', compnames=('sig','bkg'), verbose=self.verbose, checks=self.verbose)
 
     self.sigWeights  = sweighter.get_weight(0, mass_dist)
     self.bgWeights  = sweighter.get_weight(1, mass_dist)
 
     return self.sigWeights,self.bgWeights
   
-  def fitAsymmetry(self,DataIn,sigWeightsIn,sqdWeightsForErrIn,verbose=True):
+  def fitAsymmetry(self,DataIn,sigWeightsIn,sqdWeightsForErrIn):
 
     mass_dist=DataIn[:,0]
     sigFit,bgFit,yieldsFit=self.mass_splot_fit(mass_dist)
@@ -207,7 +216,7 @@ class generator:
     m1 = Minuit(c, Sigma=0.1, N=yieldsFit[0]/edges.size)
     m1.migrad()
 
-    if verbose==True:
+    if self.verbose==True:
       print('\nAsymmetry Fit Results: ')
       #print(m1)
       print('Sigma='+format(m1.values[0],'.4f')+' +/- '+format(m1.errors[0],'.4f'))
@@ -217,9 +226,7 @@ class generator:
       print('fit pull std '+format(np.std(c.pulls(m1.values)),'.4f')) 
     
     chi2=m1.fval/(phibins.size)
-    return m1.values,c.pulls(m1.values),chi2
-
-
+    
     return m1.values,c.pulls(m1.values),chi2
     
   def scale(self,data):

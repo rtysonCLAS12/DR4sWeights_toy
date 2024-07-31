@@ -1,6 +1,6 @@
 # DR4sWeights_toy
 
-Code exemplifying how to learn sWeights using Decision Trees or Neural Resamplers based on a toy example.
+Code exemplifying how to convert sWeights to definite positive probabilistic drWeights using Decision Trees or Neural Resamplers based on a toy example.
 
 ## Requirements
 
@@ -16,13 +16,11 @@ In the new environment do:
 
       python3 train.py
 
-or
+train.py shows an example of how the density ratio estimation technique can be deployed to convert sWeights to drWeights. Several parameters of the toy dataset can be modified, such as for example the number of generated events or the signal to background ratio. The models used to produce the drWeights can be changed, for example from Gradient Boosted Decision Trees, to Histogram Gradient Boosted Decision Trees or Neural Networks. Finally, train.py can also perform boostrapping and repeat the data and generation and training N times. All of these parameters can be found at the top of train.py, to be modified as desired by the user. The comments should explain what variable changes which parameter.
 
-      python3 train_neuralResampler.py
+**N.B.:** train.py will output plots to your current directory. At the top of the script you can change the print_dir variable to change the location where the plots are written. You can change the endName variable so that plots are saved as name_endName.png to avoid overwritting plots. By default train.py will save plots as name_GBDTs.png.
 
-train.py deploys a Hist Gradient Boosting Classifier (HistGBDT) by default which is very fast, this can be changed manually in the script to a Gradient Boosting Classifier (GBDT) which is slower. train.py takes less than a minute to run with the HistGBDT and about ~7 minutes with the GBT. However the HistGBDT is somewhat less accurate and introduce a discrepancy of a few percent on the asymmetry, whereas the GBDT does not.
+In the background, train.py calls on several classes. The plotter class produces plots, the generator class generates the toy data, the performance class does the boostrapping and repeated tests, and the trainer class trains the models. These scripts should not have to be altered, except the to tweak the neural network implementation. This can be found at the top of the trainer class.
 
-train_neuralResampler.py deploys a neural resampler with either a large or smaller model. The script with the larger model takes about 30 minutes to run, whereas the script with the smaller takes about 10 minutes to run. The larger model achieves better results.
 
-NB: These scripts will output plots to your current directory. At the top of both scripts you can change the print_dir variable to change the location where the plots are written. You can change the endName variable so that plots are saved as name_endName.png to avoid overwritting plots. By default train.py will save plots as name_HistGBDTs.png and train_neuralResampler.py will save plots as name_nr.png.
 

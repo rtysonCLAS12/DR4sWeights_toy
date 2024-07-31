@@ -1,4 +1,5 @@
 from generator import generator
+from trainer import trainer
 
 import numpy as np
 from iminuit import Minuit, cost
@@ -6,18 +7,14 @@ from iminuit.cost import ExtendedUnbinnedNLL
 import math
 import time
 
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.ensemble import ExtraTreesClassifier
-
-from sklearn.base import clone
-
 class performance:
 
   trer=None
+  verbose=True
 
-  def __init__(self,tr):
+  def __init__(self,tr,verbose=True):
     self.trer=tr
+    self.verbose=verbose
 
   def fitAsymmetryDRW(self,gen,dataIn,drWeightsIn,swWeightsIn):
     #print(drWeightsIn)
@@ -38,13 +35,14 @@ class performance:
     m1 = Minuit(c, Sigma=0.1, N=yieldsFit[0]/edges.size )
     m1.migrad()
     
-    print('\n DR Asymmetry Fit Results: ')
-    #print(m1)
-    print('Sigma='+format(m1.values[0],'.4f')+' +/- '+format(m1.errors[0],'.4f'))
-    print('N='+format(m1.values[1],'.0f')+' +/- '+format(m1.errors[1],'.0f'))
-    print('chi2/N='+format(m1.fval/(phibins.size),'.4f') )
-    print('fit pull mean '+format(np.mean(c.pulls(m1.values)),'.4f'))
-    print('fit pull std '+format(np.std(c.pulls(m1.values)),'.4f')) 
+    if self.verbose==True:
+      print('\n DR Asymmetry Fit Results: ')
+      #print(m1)
+      print('Sigma='+format(m1.values[0],'.4f')+' +/- '+format(m1.errors[0],'.4f'))
+      print('N='+format(m1.values[1],'.0f')+' +/- '+format(m1.errors[1],'.0f'))
+      print('chi2/N='+format(m1.fval/(phibins.size),'.4f') )
+      print('fit pull mean '+format(np.mean(c.pulls(m1.values)),'.4f'))
+      print('fit pull std '+format(np.std(c.pulls(m1.values)),'.4f')+'\n\n') 
 
     return m1.values[0],m1.errors[0],m1.values[1],m1.errors[1],np.mean(c.pulls(m1.values)),np.std(c.pulls(m1.values)),m1.fval/(phibins.size)
         
@@ -66,13 +64,15 @@ class performance:
     m1 = Minuit(c, Sigma=0.1, N=yieldsFit[0]/edges.size )
     m1.migrad()
     
-    print('\n sPlot Asymmetry Fit Results: ')
-    #print(m1)
-    print('Sigma='+format(m1.values[0],'.4f')+' +/- '+format(m1.errors[0],'.4f'))
-    print('N='+format(m1.values[1],'.0f')+' +/- '+format(m1.errors[1],'.0f'))
-    print('chi2/N='+format(m1.fval/(phibins.size),'.4f') )
-    print('fit pull mean '+format(np.mean(c.pulls(m1.values)),'.4f'))
-    print('fit pull std '+format(np.std(c.pulls(m1.values)),'.4f')) 
+    if self.verbose==True:
+      print('\n sPlot Asymmetry Fit Results: ')
+      #print(m1)
+      print('Sigma='+format(m1.values[0],'.4f')+' +/- '+format(m1.errors[0],'.4f'))
+      print('N='+format(m1.values[1],'.0f')+' +/- '+format(m1.errors[1],'.0f'))
+      print('chi2/N='+format(m1.fval/(phibins.size),'.4f') )
+      print('fit pull mean '+format(np.mean(c.pulls(m1.values)),'.4f'))
+      print('fit pull std '+format(np.std(c.pulls(m1.values)),'.4f')+'\n\n') 
+
     return m1.values[0],m1.errors[0],m1.values[1],m1.errors[1],np.mean(c.pulls(m1.values)),np.std(c.pulls(m1.values)),m1.fval/(phibins.size)
   
   def bootstrap_sample(self,all_data) :
@@ -110,18 +110,20 @@ class performance:
     for iboot in range(0,nboot):
       endT_it = time.time()
       T_it=(endT_it-startT_it)
+
       if iboot==0:
         print('performing fit bootstrap :',iboot)
       else:
-        print('\n\nperforming fit bootstrap :'+str(iboot)+' time since start '+format(T_it,'.2f')+'s')
+        print('performing fit bootstrap :'+str(iboot)+' time since start '+format(T_it,'.2f')+'s')
       obs, weights = self.bootstrap_sample_synched(dataIn,sigWeightsIn)
       sigma[iboot,0],sigma_err[iboot,0],N[iboot,0],N_err[iboot,0],pull_mean[iboot,0],pull_std[iboot,0],chi2[iboot,0] = self.fitAsymmetryDRW(gen,obs,weights)
       #sigma[iboot,0]  = self.fitAsymmetryDRW(gen,obs,weights)
 
-    print('\n\n *****Mean and std of fit bootstrapping*****')
-    print('sigma = ',np.mean(sigma),'sigma std = ',np.std(sigma),'sigma error =',np.mean(sigma_err))
-    print('pull mean ',np.mean(pull_mean),np.std(pull_mean))
-    print('pull std ',np.mean(pull_std),np.std(pull_std))
+    if self.verbose==True:
+      print('\n\n *****Mean and std of fit bootstrapping*****')
+      print('sigma = ',np.mean(sigma),'sigma std = ',np.std(sigma),'sigma error =',np.mean(sigma_err))
+      print('pull mean ',np.mean(pull_mean),np.std(pull_mean))
+      print('pull std ',np.mean(pull_std),np.std(pull_std))
 
     return np.hstack((sigma, sigma_err,pull_mean,pull_std,chi2))
 
@@ -140,20 +142,22 @@ class performance:
     for iboot in range(0,nboot):
       endT_it = time.time()
       T_it=(endT_it-startT_it)
+      
       if iboot==0:
         print('performing splot bootstrap :',iboot)
       else:
-        print('\n\nperforming splot bootstrap :'+str(iboot)+' time since start '+format(T_it,'.2f')+'s')
+        print('performing splot bootstrap :'+str(iboot)+' time since start '+format(T_it,'.2f')+'s')
       #print('do_bootstrap_splot',gen.getData().shape)
       boot_data = self.bootstrap_sample(gen.getData())
       #print('boot_data',boot_data.shape)
       boot_weights,bck_weights = gen.computesWeights(boot_data[:,0])
       sigma[iboot,0],sigma_err[iboot,0],N[iboot,0],N_err[iboot,0],pull_mean[iboot,0],pull_std[iboot,0],chi2[iboot,0] = self.fitAsymmetrySPlot(gen,boot_data,boot_weights)
       
-    print('\n\n *****Mean and std of sPlot bootstrapping*****')
-    print('sigma = ',np.mean(sigma),'sigma std = ',np.std(sigma),'sigma error =',np.mean(sigma_err))
-    print('pull mean ',np.mean(pull_mean),np.std(pull_mean))
-    print('pull std ',np.mean(pull_std),np.std(pull_std))
+    if self.verbose==True:
+      print('\n\n *****Mean and std of sPlot bootstrapping*****')
+      print('sigma = ',np.mean(sigma),'sigma std = ',np.std(sigma),'sigma error =',np.mean(sigma_err))
+      print('pull mean ',np.mean(pull_mean),np.std(pull_mean))
+      print('pull std ',np.mean(pull_std),np.std(pull_std))
 
     return np.hstack((sigma, sigma_err,pull_mean,pull_std,chi2))
 
@@ -190,10 +194,11 @@ class performance:
     for iboot in range(0,nboot):
       endT_it = time.time()
       T_it=(endT_it-startT_it)
+      
       if iboot==0:
         print('performing DR bootstrap :',iboot)
       else:
-        print('\n\nperforming DR bootstrap :'+str(iboot)+' time since start '+format(T_it,'.2f')+'s')
+        print('performing DR bootstrap :'+str(iboot)+' time since start '+format(T_it,'.2f')+'s')
       #print('do_bootstrap_splot',gen.getData())
       boot_data = self.bootstrap_sample(gen.getData())
       #print('boot_data',boot_data)
@@ -208,13 +213,14 @@ class performance:
       #dr_weights= 1 - dr_weights
       #bsigma[iboot,0],bsigma_err[iboot,0],bN[iboot,0],bN_err[iboot,0],bpull_mean[iboot,0],bpull_std[iboot,0],bgchi2[iboot,0] = self.fitAsymmetryDRW(gen,boot_data,dr_weights,boot_weights[:,0].T)
 
-    print('\n\n *****Mean and std of DR bootstrapping*****')
-    print('sigma = ',np.mean(sigma),'sigma std = ',np.std(sigma),'sigma error =',np.mean(sigma_err))
-    print('pull mean ',np.mean(pull_mean),np.std(pull_mean))
-    print('pull std ',np.mean(pull_std),np.std(pull_std))
-    #print('bg sigma ',np.mean(bsigma),np.std(bsigma),np.mean(bsigma_err))
-    #print('bg pull mean ',np.mean(bpull_mean),np.std(bpull_mean))
-    #print('bg pull std ',np.mean(bpull_std),np.std(bpull_std))
+    if self.verbose==True:
+      print('\n\n *****Mean and std of DR bootstrapping*****')
+      print('sigma = ',np.mean(sigma),'sigma std = ',np.std(sigma),'sigma error =',np.mean(sigma_err))
+      print('pull mean ',np.mean(pull_mean),np.std(pull_mean))
+      print('pull std ',np.mean(pull_std),np.std(pull_std))
+      #print('bg sigma ',np.mean(bsigma),np.std(bsigma),np.mean(bsigma_err))
+      #print('bg pull mean ',np.mean(bpull_mean),np.std(bpull_mean))
+      #print('bg pull std ',np.mean(bpull_std),np.std(bpull_std))
 
     return np.hstack((sigma, sigma_err,pull_mean,pull_std,chi2))
   
@@ -236,23 +242,25 @@ class performance:
     pullDR_std = np.zeros((nIt,1))
     chi2DR = np.zeros((nIt,1))
 
-    all_data=gen.getData()
-    all_weights,bck_weights = gen.computesWeights(all_data[:,0])
-
     startT_it = time.time()
     for it in range(nIt):
 
       endT_it = time.time()
       T_it=(endT_it-startT_it)
+
       if it==0:
         print('performing loop iteration :',it)
       else:
-        print('\n\nperforming loop iteration :'+str(it)+' time since start '+format(T_it,'.2f')+'s')
+        print('performing loop iteration :'+str(it)+' time since start '+format(T_it,'.2f')+'s')
+
+      gen.generate()
+      all_data=gen.getData()
+      all_weights,bck_weights = gen.computesWeights(all_data[:,0])
 
       all_data=gen.scale(all_data)
     
       self.trer.clear_models()
-      self.trer.train(all_data.copy(),all_weights.copy(),verbose=False)
+      self.trer.train(all_data,all_weights,verbose=False)
       dr_weights=self.trer.predict(all_data,verbose=False)
 
       all_data=gen.unscale(all_data)
@@ -260,16 +268,16 @@ class performance:
       sigma[it,0],sigma_err[it,0],N[it,0],N_err[it,0],pull_mean[it,0],pull_std[it,0],chi2[it,0] = self.fitAsymmetrySPlot(gen,all_data,all_weights)
       sigmaDR[it,0],sigmaDR_err[it,0],NDR[it,0],NDR_err[it,0],pullDR_mean[it,0],pullDR_std[it,0],chi2DR[it,0] = self.fitAsymmetryDRW(gen,all_data,dr_weights,all_weights)
 
-    
-    print('\n\n ***** Mean and std of sPlot Loop *****')
-    print('sigma = ',np.mean(sigma),'sigma std = ',np.std(sigma),'sigma error =',np.mean(sigma_err))
-    print('pull mean ',np.mean(pull_mean),np.std(pull_mean))
-    print('pull std ',np.mean(pull_std),np.std(pull_std))
-    
-    print('\n***** Mean and std of DR Loop *****')
-    print('sigma = ',np.mean(sigmaDR),'sigma std = ',np.std(sigmaDR),'sigma error =',np.mean(sigmaDR_err))
-    print('pull mean ',np.mean(pullDR_mean),np.std(pullDR_mean))
-    print('pull std ',np.mean(pullDR_std),np.std(pullDR_std))
+    if self.verbose==True:
+      print('\n\n ***** Mean and std of sPlot Loop *****')
+      print('sigma = ',np.mean(sigma),'sigma std = ',np.std(sigma),'sigma error =',np.mean(sigma_err))
+      print('pull mean ',np.mean(pull_mean),np.std(pull_mean))
+      print('pull std ',np.mean(pull_std),np.std(pull_std))
+
+      print('\n***** Mean and std of DR Loop *****')
+      print('sigma = ',np.mean(sigmaDR),'sigma std = ',np.std(sigmaDR),'sigma error =',np.mean(sigmaDR_err))
+      print('pull mean ',np.mean(pullDR_mean),np.std(pullDR_mean))
+      print('pull std ',np.mean(pullDR_std),np.std(pullDR_std))
 
     return np.hstack((sigma, sigma_err,pull_mean,pull_std,chi2)), np.hstack((sigmaDR, sigmaDR_err,pullDR_mean,pullDR_std,chi2DR))
   
@@ -280,6 +288,15 @@ class performance:
     print('pull mean ',np.mean(perf[:,2]),np.std(perf[:,2]))
     print('pull std ',np.mean(perf[:,3]),np.std(perf[:,3]))
     print('chi^2 ',np.mean(perf[:,4]),np.std(perf[:,4]))
+
+  def write_out_summary(self, perf,algoName,testName,fName,opt):
+    f = open(fName,opt)
+    f.write('\n\n\n ***** Mean and std of '+algoName+' '+testName+' *****')
+    f.write('\nsigma = '+str(np.mean(perf[:,0]))+'sigma std = '+str(np.std(perf[:,0]))+'sigma error ='+str(np.mean(perf[:,1])))
+    f.write('\npull mean '+str(np.mean(perf[:,2]))+' '+str(np.std(perf[:,2])))
+    f.write('\npull std '+str(np.mean(perf[:,3]))+' '+str(np.std(perf[:,3])))
+    f.write('\nchi^2 '+str(np.mean(perf[:,4]))+' '+str(np.std(perf[:,4])))
+    f.close()
 
       
 

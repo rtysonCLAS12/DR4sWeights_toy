@@ -54,6 +54,7 @@ class plotter:
         mplhep.histplot(nssig, bins=bsig, histtype="errorbar", yerr=True,label="sWeights Signal", color="royalblue",linewidth=3,markersize=25,capsize=7,elinewidth=5)
         nsbg, bbg = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100,weights=sWeightsBG)
         mplhep.histplot(nsbg, bins=bbg, histtype="errorbar", yerr=True,label="sWeights Background", color="firebrick",linewidth=3,markersize=25,capsize=7,elinewidth=5)
+
         plt.legend(loc='upper right')
         ymin, ymax = plt.ylim()
         if ymin<0:
@@ -83,6 +84,7 @@ class plotter:
       mplhep.histplot(nssig, bins=bsig, histtype="errorbar", yerr=True,label="sWeights Signal", color="royalblue",linewidth=3,markersize=25,capsize=7,elinewidth=5)
       nsbg, bbg = np.histogram(weightsDR,range=(self.ranges[j][0],self.ranges[j][1]), bins=100)
       mplhep.histplot(nsbg, bins=bbg, histtype="errorbar", yerr=True,label="Density Ratio Signal", color="firebrick",linewidth=3,markersize=25,capsize=7,elinewidth=5)
+
       plt.legend(loc='upper right')
       plt.yscale("log")   
       ymin, ymax = plt.ylim()
@@ -120,12 +122,18 @@ class plotter:
         axs[0].set_title(self.titles[j])
 
       else:
-        nall, ball = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100)
-        mplhep.histplot(nall, bins=ball, histtype="errorbar", yerr=True,label="All", color="black",linewidth=3,ax=axs[0],markersize=25,capsize=7,elinewidth=5)
-        nsig, bsig = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100,weights=sWeights)
-        mplhep.histplot(nsig, bins=bsig, histtype="errorbar", yerr=True,label="sWeights Signal", color="royalblue",linewidth=3,ax=axs[0],markersize=25,capsize=7,elinewidth=5)
-        npred, bpred = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100,weights=DRWeights)
-        mplhep.histplot(npred, bins=bpred, histtype="errorbar", yerr=True,label="Density Ratio Signal", color="firebrick",linewidth=3,ax=axs[0],markersize=25,capsize=7,elinewidth=5)
+        #nall, ball = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100)
+        #mplhep.histplot(nall, bins=ball, histtype="errorbar", yerr=True,label="All", color="black",linewidth=3,ax=axs[0],markersize=25,capsize=7,elinewidth=5)
+        #nsig, bsig = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100,weights=sWeights)
+        #mplhep.histplot(nsig, bins=bsig, histtype="errorbar", yerr=True,label="sWeights Signal", color="royalblue",linewidth=3,ax=axs[0],markersize=25,capsize=7,elinewidth=5)
+        #npred, bpred = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100,weights=DRWeights)
+        #mplhep.histplot(npred, bins=bpred, histtype="errorbar", yerr=True,label="Density Ratio Signal", color="firebrick",linewidth=3,ax=axs[0],markersize=25,capsize=7,elinewidth=5)
+
+        hall,nall,errall,ball=self.histWeightedErrorBars(vars[:,j], np.ones((vars.shape[0])), np.ones((vars.shape[0])), color="black", label="All",ax=axs[0],rge=(self.ranges[j][0],self.ranges[j][1]))
+        hsig,nsig,errsig,bsig=self.histWeightedErrorBars(vars[:,j], sWeights, sWeights, color="royalblue", label="sWeights Signal",ax=axs[0],rge=(self.ranges[j][0],self.ranges[j][1]))
+        hpred,npred,errpred,bpred=self.histWeightedErrorBars(vars[:,j], DRWeights, sWeights, color="firebrick", label="Density Ratio Signal",ax=axs[0],rge=(self.ranges[j][0],self.ranges[j][1]))
+
+
         axs[0].legend(loc='upper right')
         ymin, ymax = axs[0].get_ylim()
         if ymin<0:
@@ -142,9 +150,9 @@ class plotter:
         if (npred[i]!=0) or (nsig[i]!=0):
           #res.append(nsig[i]/npred[i])
           #e=res[i]*np.sqrt( np.square((np.sqrt(nsig[i])/nsig[i])) +  np.square((np.sqrt(npred[i])/npred[i])) ) #error for ratio
-          std=np.sqrt(nsig[i] + npred[i]) #sum of squares of sqrt(nsig) and sqrt(npred)
+          std=np.sqrt(errsig[i]**2 + errpred[i]**2) #sum of squares of sqrt(nsig) and sqrt(npred)
           res.append((nsig[i]-npred[i])/std)
-          res_err.append(0) #what's error on pull?
+          res_err.append(1)
           plotloc.append( (bsig[i+1]-bsig[i])/2 + bsig[i] )
         
       axs[1].errorbar(x=plotloc, y=res, yerr=res_err,fmt='s', color='mediumorchid',ms=10,capsize=7,elinewidth=3)
@@ -157,6 +165,16 @@ class plotter:
       axs[1].set_ylabel('Pull')
       plt.xlabel(self.titles[j]+' '+self.units[j])
       plt.savefig(self.print_dir+'DRsWeights_Comp'+self.names[j]+self.endName+'.png')
+
+  def histWeightedErrorBars(self,data, wgts, errwgts, color, label,ax,rge):
+    sumweights, edges = np.histogram( data, weights=wgts, range=rge,bins=100 )
+    sumweight_sqrd, edges = np.histogram( data, weights=errwgts*errwgts, range=rge,bins=100 )
+    errs = np.sqrt(sumweight_sqrd)
+    bincenters = []
+    for i in range(len(sumweights)):
+      bincenters.append( (edges[i+1]-edges[i])/2 + edges[i] )
+    histo = ax.errorbar(bincenters, sumweights, errs, fmt='.',color=color, label=label,linewidth=3,markersize=25,capsize=7,elinewidth=5)
+    return histo,sumweights,errs,edges
 
   def plotPerformanceResults(self,perf,perfDR,testName):
 
