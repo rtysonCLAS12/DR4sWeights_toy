@@ -26,6 +26,79 @@ class plotter:
     self.titles=['Mass',r'$\phi$','Z','Weights']
     self.units=['[GeV]','[rad]','','']
 
+  def plotSigSWeightComp(self,vars,sWeights,sigOnly,useErrorBars=False):
+
+    for j in range(3):
+
+      if useErrorBars==False:
+        fig = plt.figure(figsize=(20, 20))
+        plt.hist(vars[:,j], range=self.ranges[j],bins=100,color='royalblue',label='sWeighted Signal',weights=sWeights)
+        plt.hist(sigOnly[:,j], range=self.ranges[j],bins=100,edgecolor='mediumorchid',label='Signal',hatch='/', histtype='step',fill=False,linewidth=3,weights=np.ones((sigOnly.shape[0])))
+        plt.hist(vars[:,j], range=self.ranges[j],bins=100,edgecolor='black',color='black',label='Signal & Background', histtype='step',fill=False,linewidth=3)
+        plt.legend(loc='upper right')
+        ymin, ymax = plt.ylim()
+        if ymin<0:
+          plt.ylim(ymin, ymax * 1.25)
+        else:
+          plt.ylim(0, ymax * 1.25)
+        plt.xlabel(self.titles[j]+' '+self.units[j])
+        plt.title(self.titles[j])
+        plt.savefig(self.print_dir+'sWeightSignalComp'+self.names[j]+self.endName+'.png')
+
+      else:
+        fig = plt.figure(figsize=(20, 20))
+        nsall, ball = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100)
+        mplhep.histplot(nsall, bins=ball, histtype="errorbar", yerr=True,label="Signal & Background", color="black",linewidth=3,markersize=25,capsize=7,elinewidth=5)
+        nssig, bsig = np.histogram(vars[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100,weights=sWeights)
+        mplhep.histplot(nssig, bins=bsig, histtype="errorbar", yerr=True,label="sWeighted Signal", color="royalblue",linewidth=3,markersize=25,capsize=7,elinewidth=5)
+        nsbg, bbg = np.histogram(sigOnly[:,j],range=(self.ranges[j][0],self.ranges[j][1]), bins=100,weights=np.ones((sigOnly.shape[0])))
+        mplhep.histplot(nsbg, bins=bbg, histtype="errorbar", yerr=True,label="Signal", color="mediumorchid",linewidth=3,markersize=25,capsize=7,elinewidth=5)
+
+        plt.legend(loc='upper right')
+        ymin, ymax = plt.ylim()
+        if ymin<0:
+          plt.ylim(ymin, ymax * 1.25)
+        else:
+          plt.ylim(0, ymax * 1.25)
+        plt.xlabel(self.titles[j]+' '+self.units[j])
+        plt.title(self.titles[j])
+        plt.savefig(self.print_dir+'sWeightSignalComp'+self.names[j]+self.endName+'.png')
+
+  def plotFit(self,vars,m,Fit,Fit_sig,Fit_bg,useErrorBars=False):
+
+    if useErrorBars==False:
+      fig = plt.figure(figsize=(20, 20))
+      plt.hist(vars[:,0], range=self.ranges[0],bins=100,edgecolor='black',color='black',label='Signal & Background', histtype='step',fill=False,linewidth=5)
+      plt.plot(m, Fit_sig, label="Signal Fit", color="royalblue",linewidth=5,linestyle='--')
+      plt.plot(m, Fit_bg, label="Bg Fit", color="firebrick",linewidth=5,linestyle='--')
+      plt.plot(m, Fit, label="Total Fit", color="mediumorchid",linewidth=5)
+      #plt.legend(loc='upper right')
+      #ymin, ymax = plt.ylim()
+      #if ymin<0:
+      #  plt.ylim(ymin, ymax * 1.25)
+      #else:
+      #  plt.ylim(0, ymax * 1.25)
+      plt.xlabel(self.titles[0]+' '+self.units[0])
+      plt.title(self.titles[0])
+      plt.savefig(self.print_dir+'Fit'+self.names[0]+self.endName+'.png')
+      
+    else:
+      fig = plt.figure(figsize=(20, 20))
+      nsall, ball = np.histogram(vars[:,0],range=(self.ranges[0][0],self.ranges[0][1]), bins=100)
+      mplhep.histplot(nsall, bins=ball, histtype="errorbar", yerr=True,label="Signal & Background", color="black",linewidth=3,markersize=25,capsize=7,elinewidth=5)
+      plt.plot(m, Fit_sig, label="Signal Fit", color="royalblue",linewidth=5,linestyle='--')
+      plt.plot(m, Fit_bg, label="Bg Fit", color="firebrick",linewidth=5,linestyle='--')
+      plt.plot(m, Fit, label="Total Fit", color="mediumorchid",linewidth=5)
+      #plt.legend(loc='upper right')
+      #ymin, ymax = plt.ylim()
+      #if ymin<0:
+      #  plt.ylim(ymin, ymax * 1.25)
+      #else:
+      #  plt.ylim(0, ymax * 1.25)
+      plt.xlabel(self.titles[0]+' '+self.units[0])
+      plt.title(self.titles[0])
+      plt.savefig(self.print_dir+'Fit'+self.names[0]+self.endName+'.png')
+
 
   def plotSWeightedVariables(self,vars,sWeights,sWeightsBG,useErrorBars=False):
 
@@ -167,8 +240,8 @@ class plotter:
       plt.savefig(self.print_dir+'DRsWeights_Comp'+self.names[j]+self.endName+'.png')
 
   def histWeightedErrorBars(self,data, wgts, errwgts, color, label,ax,rge):
-    sumweights, edges = np.histogram( data, weights=wgts, range=rge,bins=100 )
-    sumweight_sqrd, edges = np.histogram( data, weights=errwgts*errwgts, range=rge,bins=100 )
+    sumweights, edges = np.histogram( data, weights=wgts, range=rge,bins=100)
+    sumweight_sqrd, edges = np.histogram( data, weights=errwgts*errwgts, range=rge,bins=100)
     errs = np.sqrt(sumweight_sqrd)
     bincenters = []
     for i in range(len(sumweights)):

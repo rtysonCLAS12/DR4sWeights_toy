@@ -23,7 +23,7 @@ class performance:
     mass_dist=dataIn[:,0]
     sigFit,bgFit,yieldsFit=gen.mass_splot_fit(mass_dist)
     phi_dist = dataIn[:,1]
-    phibins = np.linspace(gen.Phmin, gen.Phmax, 100)
+    phibins = np.linspace(gen.Phmin, gen.Phmax, 50)
 
     sig_sumweights, edges = np.histogram( phi_dist, weights=drWeightsIn, bins=phibins )
     sig_sumweight_sqrd, edges = np.histogram( phi_dist, weights=( swWeightsIn*swWeightsIn ), bins=phibins )
@@ -52,7 +52,7 @@ class performance:
     mass_dist=dataIn[:,0]
     sigFit,bgFit,yieldsFit=gen.mass_splot_fit(mass_dist)
     phi_dist = dataIn[:,1]
-    phibins = np.linspace(gen.Phmin, gen.Phmax, 100)
+    phibins = np.linspace(gen.Phmin, gen.Phmax, 50)
 
     sig_sumweights, edges = np.histogram( phi_dist, weights=sigWeightsIn, bins=phibins )
     sig_sumweight_sqrd, edges = np.histogram( phi_dist, weights=( sigWeightsIn*sigWeightsIn ), bins=phibins )

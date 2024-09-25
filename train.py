@@ -49,8 +49,8 @@ startT_all = time.time()
 
 #plots outputted to print_dir
 #append endName to end of plots to avoid overwriting plots
-print_dir=''
-endName='_GBDTs' 
+print_dir='/w/work/clas12/tyson/plots/aiDataAcceptance/toy_DR4sWeights/vars/'
+endName='_500kEvents_2to1_BGtoSig_GBDTandGBDT' 
 
 print('\nPlots will be written to directory: '+print_dir)
 print('Plot names formatted as name'+endName+'.pdf\n\n')
@@ -60,10 +60,10 @@ plotWithErrorBars=True
 
 #change number of generated events
 nEvents=500000
-#nEvents=10000
+#nEvents=3334
 
 #change signal to background ratio
-BGtoSigRatio=(9,1)
+BGtoSigRatio=(2,1)
 
 #variable ranges
 mRange=(0,10)
@@ -79,8 +79,8 @@ nPerfIt=0
 
 base_model = GradientBoostingClassifier(max_depth=10)
 
-#base_model2 = HistGradientBoostingClassifier(max_depth=10)
-base_model2 = GradientBoostingClassifier(max_depth=10)
+base_model2 = HistGradientBoostingClassifier(max_depth=10)
+#base_model2 = GradientBoostingClassifier(max_depth=10)
 
 bms=[base_model,base_model2]
 
