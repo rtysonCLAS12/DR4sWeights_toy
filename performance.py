@@ -11,10 +11,12 @@ class performance:
 
   trer=None
   verbose=True
+  useDifTest=True
 
-  def __init__(self,tr,verbose=True):
+  def __init__(self,tr,verbose=True,useDifDataTest=True):
     self.trer=tr
     self.verbose=verbose
+    self.useDifTest=useDifDataTest
 
   def fitAsymmetryDRW(self,gen,dataIn,drWeightsIn,swWeightsIn):
     #print(drWeightsIn)
@@ -161,16 +163,24 @@ class performance:
 
     return np.hstack((sigma, sigma_err,pull_mean,pull_std,chi2))
 
-  def train(self,gen,all_data,all_weights) :
+  def train(self,gen,all_data,all_weights,all_data_test) :
     all_data=gen.scale(all_data)
     
     self.trer.clear_models()
     self.trer.train(all_data,all_weights,verbose=False)
-    weights_DR=self.trer.predict(all_data,verbose=False)
+    weights_DR=self.trer.predict(all_data_test,verbose=False)
     
     all_data=gen.unscale(all_data)
     
     return weights_DR
+  
+  def prepBootData(self,gen):
+    boot_data = self.bootstrap_sample(gen.getData())
+    #print('boot_data',boot_data)
+    boot_weights,bck_weights = gen.computesWeights(boot_data[:,0])
+    boot_weights=np.asarray(boot_weights).reshape((boot_data.shape[0],1))
+    return boot_data,boot_weights,bck_weights
+
 
   def do_bootstrap_dr(self,nboot,gen) :
     #given discriminatory variable xdisc,
@@ -199,13 +209,17 @@ class performance:
         print('performing DR bootstrap :',iboot)
       else:
         print('performing DR bootstrap :'+str(iboot)+' time since start '+format(T_it,'.2f')+'s')
-      #print('do_bootstrap_splot',gen.getData())
-      boot_data = self.bootstrap_sample(gen.getData())
-      #print('boot_data',boot_data)
-      boot_weights,bck_weights = gen.computesWeights(boot_data[:,0])
-      boot_weights=np.asarray(boot_weights).reshape((boot_data.shape[0],1))
-      dr_weights = self.train(gen,boot_data,boot_weights)
-      sigma[iboot,0],sigma_err[iboot,0],N[iboot,0],N_err[iboot,0],pull_mean[iboot,0],pull_std[iboot,0],chi2[iboot,0] = self.fitAsymmetryDRW(gen,boot_data,dr_weights,boot_weights[:,0].T)
+      boot_data,boot_weights,bck_weights=self.prepBootData(gen)
+
+      boot_data_test = boot_data
+      boot_weights_test = boot_weights
+      bck_weights_test = bck_weights
+      if self.useDifTest==True:
+        boot_data_test, boot_weights_test,bck_weights_test =self.prepBootData(gen)
+    
+
+      dr_weights_test = self.train(gen,boot_data,boot_weights,boot_data_test)
+      sigma[iboot,0],sigma_err[iboot,0],N[iboot,0],N_err[iboot,0],pull_mean[iboot,0],pull_std[iboot,0],chi2[iboot,0] = self.fitAsymmetryDRW(gen,boot_data_test,dr_weights_test,boot_weights_test[:,0].T)
       
       #print('now try background weights')
       #bck_weights=np.asarray(bck_weights).reshape((boot_data.shape[0],1))
@@ -223,6 +237,13 @@ class performance:
       #print('bg pull std ',np.mean(bpull_std),np.std(bpull_std))
 
     return np.hstack((sigma, sigma_err,pull_mean,pull_std,chi2))
+  
+  def prepData(self,gen):
+    gen.generate()
+    all_data=gen.getData()
+    all_weights,bck_weights = gen.computesWeights(all_data[:,0])
+    all_data=gen.scale(all_data)
+    return all_data,all_weights,bck_weights
   
   def do_loop(self,nIt,gen):
 
@@ -253,14 +274,15 @@ class performance:
       else:
         print('performing loop iteration :'+str(it)+' time since start '+format(T_it,'.2f')+'s')
 
-      gen.generate()
-      all_data=gen.getData()
-      all_weights,bck_weights = gen.computesWeights(all_data[:,0])
-
-      all_data=gen.scale(all_data)
+      all_data, all_weights,bck_weights =self.prepData(gen)
     
       self.trer.clear_models()
+
       self.trer.train(all_data,all_weights,verbose=False)
+
+      if self.useDifTest==True:
+        all_data, all_weights,bck_weights =self.prepData(gen)
+
       dr_weights=self.trer.predict(all_data,verbose=False)
 
       all_data=gen.unscale(all_data)

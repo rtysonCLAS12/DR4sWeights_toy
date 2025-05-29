@@ -32,9 +32,11 @@ class generator:
   freq=2
   verbose=True
   BGtoSig=(2,1)
+  NTerms=1
+  Sigma=0.8
 
 
-  def __init__(self,MRange,PhRange,ZRange,nEvs,BGtoSig=(2,1),frequency=2,generate=True,verbose=True):
+  def __init__(self,MRange,PhRange,ZRange,nEvs,BGtoSig=(2,1),Sigma=0.8,frequency=2,NTerms=1,generate=True,verbose=True):
     self.Mmin=MRange[0]
     self.Mmax=MRange[1]
     self.Phmin=PhRange[0]
@@ -46,6 +48,8 @@ class generator:
     self.verbose=verbose
     self.BGtoSig=BGtoSig
     self.freq=frequency
+    self.NTerms=NTerms
+    self.Sigma=Sigma
 
     if generate==True:
       self.generate()
@@ -59,7 +63,13 @@ class generator:
 
   #Asymmetry PDF
   def AsymmetryPDF(self,xphi,Sigma):
-    return (1 - Sigma*np.cos(self.freq*xphi))/(self.Phmax-self.Phmin)
+    if self.NTerms==1:
+      return (1 - Sigma*np.cos(self.freq*xphi))/(self.Phmax-self.Phmin)
+    else:
+      term=1
+      for i in range(self.NTerms):
+        term=term-Sigma*np.cos(i*xphi)
+      return term/(self.Phmax-self.Phmin)
   
   def SignalMassPDF(self,xmass,mean,width):
     sig  = norm(mean,width)
@@ -85,7 +95,7 @@ class generator:
     return val/integ
   
   def TruePDF(self,m,ph,z):
-    return self.BGtoSig[1]*self.SignalMassPDF(m,5,0.5)*self.AsymmetryPDF(ph,0.8) + self.BGtoSig[0]*self.BackGPDF(m,[0.6,0.2])*self.AsymmetryPDF(ph,-0.2)
+    return self.BGtoSig[1]*self.SignalMassPDF(m,5,0.5)*self.AsymmetryPDF(ph,self.Sigma) + self.BGtoSig[0]*self.BackGPDF(m,[0.6,0.2])*self.AsymmetryPDF(ph,-0.2)
 
   def generate_event(self,gen_max_val,nEvs):
     x = np.random.uniform(self.Mmin,self.Mmax,nEvs)

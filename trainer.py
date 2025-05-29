@@ -77,10 +77,11 @@ class trainer:
     return self.base_models
 
   def create_sample(self,data,sigWeights,bgWeights):
+    #print(data.shape)
     Xall=np.vstack((data,data))
     weights=np.vstack((sigWeights.reshape((data.shape[0],1)),bgWeights.reshape((data.shape[0],1)))).reshape((Xall.shape[0]))
     Yall=np.vstack((np.ones((data.shape[0],1)),np.zeros((data.shape[0],1)))).reshape((Xall.shape[0]))
-
+    
     #shuffle in unison
     p = np.random.permutation(Xall.shape[0])
     Xall=Xall[p]
@@ -114,7 +115,7 @@ class trainer:
       if verbose==True:
         print('It '+str(i)+': training single model took '+format(T_train,'.2f')+' minutes')
 
-      new_bgweight=self.predict_oneModel(data,self.models[i],verbose=verbose,useNR=self.using_neuralResampler[i])*self.bg_weights[i]
+      new_bgweight=self.predict_oneModel(data,self.models[i],verbose=verbose,useNR=self.using_neuralResampler[i],modelNb=i)*self.bg_weights[i]
       self.bg_weights.append(new_bgweight)
 
     endT_trainAll = time.time()
@@ -124,13 +125,15 @@ class trainer:
       print('\nTraining all models  took '+format(T_trainAll,'.2f')+' minutes\n')
 
       
-  def predict_oneModel(self,data,model,useNR=0,verbose=True):
+  def predict_oneModel(self,data,model,useNR=0,verbose=True,modelNb=0):
     y_pred=np.ones((1,1))
 
     startT_test = time.time()
 
     if useNR==0:
       y_pred=model.predict_proba(data[:,1:])[:,1]
+      #print(y_pred)
+      #print(y_pred.shape)
     elif useNR==1:
       y_pred=model.predict(data[:,1:],batch_size=1000,verbose=verbose).reshape((data.shape[0]))
     else:
@@ -142,12 +145,45 @@ class trainer:
     if verbose==True:
       print('Single model prediction took '+format(T_test,'.2f')+' seconds')
 
+    #capping
+    # y_pred[y_pred==1]=1-0.01
+    # weights_DR = y_pred/(1-y_pred)
+    # weights_DR=np.nan_to_num(weights_DR, nan=1, posinf=1, neginf=1)
+    # weights_DR[weights_DR>10]=10 #some weights blow up
+      
+    #scaling instead
+    # if modelNb==0:
+    #   #y_pred[y_pred>0.5]=0
+    #   y_pred[y_pred>0.75]=0.75
+    # else:
+    #   #y_pred = 0.5 + 0.5*(y_pred-0.5)
+    #   y_pred[y_pred>0.75]=0.75 # ie weights >3
+    # weights_DR = y_pred/(1-y_pred)
+      
+    # #capping v2
     y_pred[y_pred==1]=1-0.0000001
     weights_DR = y_pred/(1-y_pred)
     weights_DR=np.nan_to_num(weights_DR, nan=1, posinf=1, neginf=1)
-    weights_DR[weights_DR>1]=1 #some weights blow up
+    if modelNb==0:
+      weights_DR[weights_DR>1]=1 #some weights blow up
+    else:
+      weights_DR[weights_DR>1]=1 #some weights blow up
+
     weights_DR=weights_DR.reshape((data.shape[0],1))
+
     return weights_DR
+
+    #wrong reweight weights
+    # if modelNb==0:
+    #   y_pred[y_pred==1]=1-0.01
+    #   weights_DR = y_pred/(1-y_pred)
+    #   weights_DR=np.nan_to_num(weights_DR, nan=1, posinf=1, neginf=1)
+    #   weights_DR[weights_DR>10]=1 #some weights blow up
+    #   weights_DR=weights_DR.reshape((data.shape[0],1))
+    #   return weights_DR
+    # else:
+    #   y_pred=y_pred.reshape((data.shape[0],1))
+    #   return y_pred
   
   def predict(self,data,verbose=True):
 
@@ -161,6 +197,7 @@ class trainer:
 
       if self.using_neuralResampler[i]==0:
         y_pred=self.models[i].predict_proba(data[:,1:])[:,1]
+        #print(y_pred)
       elif self.using_neuralResampler[i]==1:
         y_pred=self.models[i].predict(data[:,1:],batch_size=1000,verbose=verbose).reshape((data.shape[0]))
       else:
@@ -170,13 +207,45 @@ class trainer:
       T_test=(endT_test-startT_test)
 
       if verbose==True:
-        print('Single model predciction took '+format(T_test,'.2f')+' s')
+        print('Single model prediction took '+format(T_test,'.2f')+' s')
 
+      #capping
+      # y_pred[y_pred==1]=1-0.01
+      # weights_DR = y_pred/(1-y_pred)
+      # weights_DR=np.nan_to_num(weights_DR, nan=1, posinf=1, neginf=1)
+      # weights_DR[weights_DR>10]=1 #some weights blow up
+        
+      #scaling instead
+      # if i==0:
+      #   #y_pred[y_pred>0.5]=0
+      #   y_pred[y_pred>0.75]=0.75
+      # else:
+      #   #y_pred = 0.5 + 0.5*(y_pred-0.5)
+      #   y_pred[y_pred>0.75]=0.75 # ie weights >3
+      # weights_DR = y_pred/(1-y_pred)
+        
+      #capping v2
       y_pred[y_pred==1]=1-0.0000001
       weights_DR = y_pred/(1-y_pred)
       weights_DR=np.nan_to_num(weights_DR, nan=1, posinf=1, neginf=1)
-      weights_DR[weights_DR>1]=1 #some weights blow up
+      if i==0:
+        weights_DR[weights_DR>1]=1 #some weights blow up
+      else:
+        weights_DR[weights_DR>1]=1 #some weights blow up
+
+
       weights_DR_all=weights_DR_all*weights_DR
+
+      #wrong reweight weights
+      # if i==0:
+      #   y_pred[y_pred==1]=1-0.01
+      #   weights_DR = y_pred/(1-y_pred)
+      #   weights_DR=np.nan_to_num(weights_DR, nan=1, posinf=1, neginf=1)
+      #   weights_DR[weights_DR>10]=1 #some weights blow up
+      #   weights_DR_all=weights_DR_all*weights_DR
+      # else:
+      #   weights_DR_all=weights_DR_all*y_pred
+        
 
     endT_testAll = time.time()
     T_testAll=(endT_testAll-startT_testAll)

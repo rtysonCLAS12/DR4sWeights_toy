@@ -15,6 +15,8 @@ import time
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeRegressor
 
 from sklearn.base import clone
 
@@ -49,8 +51,8 @@ startT_all = time.time()
 
 #plots outputted to print_dir
 #append endName to end of plots to avoid overwriting plots
-print_dir=''
-endName='_500kEvents_2to1_BGtoSig_GBDTandGBDT' 
+print_dir='/w/work/clas12/tyson/plots/aiDataAcceptance/toy_DR4sWeights/vars/'
+endName='_100kEvents_9to1_BGtoSig_2GBDT_freq10_Sigma0p8_NTerms1_test'#_damp0p5' 
 
 print('\nPlots will be written to directory: '+print_dir)
 print('Plot names formatted as name'+endName+'.pdf\n\n')
@@ -59,11 +61,11 @@ print('Plot names formatted as name'+endName+'.pdf\n\n')
 plotWithErrorBars=True
 
 #change number of generated events
-nEvents=500000
+nEvents=100000
 #nEvents=3334
 
 #change signal to background ratio
-BGtoSigRatio=(2,1)
+BGtoSigRatio=(9,1)
 
 #variable ranges
 mRange=(0,10)
@@ -77,12 +79,20 @@ nPerfIt=0
 #both GradientBoosting and HistGradientBoosting work well
 #HistGradientBoosting is much faster
 
-base_model = GradientBoostingClassifier(max_depth=10)
+base_model = GradientBoostingClassifier(max_depth=10) #,n_estimators=100)
 
-base_model2 = HistGradientBoostingClassifier(max_depth=10)
-#base_model2 = GradientBoostingClassifier(max_depth=10)
+base_model2 = GradientBoostingClassifier(max_depth=10)
+
+#base_model2 = HistGradientBoostingClassifier(max_depth=10)
+#base_model2 = GradientBoostingClassifier(max_depth=100,n_estimators=1000) #'NN' #GradientBoostingClassifier(max_depth=10)#,n_estimators=1000)
+#base_model2 = DecisionTreeClassifier()
+#base_model2 = 'NN'
 
 bms=[base_model,base_model2]
+
+#bms=[]
+#for i in range(25):
+#  bms.append(GradientBoostingClassifier(max_depth=10))
 
 #use a by default neural network with 'NN'
 #the network can be changed in the trainer.py class
@@ -93,7 +103,7 @@ pter=plotter(mRange,phiRange,ZRange,print_dir,endName)
 print('Generating data...')
 startT_gen = time.time()
 
-gener=generator(mRange,phiRange,ZRange,nEvents,BGtoSig=BGtoSigRatio)
+gener=generator(mRange,phiRange,ZRange,nEvents,BGtoSig=BGtoSigRatio,frequency=10,Sigma=0.8,NTerms=1)
 
 endT_gen = time.time()
 T_gen=endT_gen-startT_gen
@@ -110,15 +120,23 @@ pter.plotSWeightedVariables(Data,sigWeights,bgWeights,plotWithErrorBars)
 
 sigWeights=np.asarray(sigWeights)#.reshape((Data.shape[0],1))
 
+#convert variable range to 0 - 1
 Data=gener.scale(Data)
 
 #split into training and testing sets
 nTrain=math.ceil(0.7*(Data.shape[0]))
 X_train=Data[:nTrain,:]
 X_test=Data[nTrain:,:]
-
 weights_train=sigWeights[:nTrain]#.reshape((X_train))
 weights_test=sigWeights[nTrain:]#.reshape((X_test))
+
+#or not
+# X_train=Data
+# X_test=Data
+# weights_train=sigWeights#.reshape((X_train))
+# weights_test=sigWeights#.reshape((X_test))
+
+
 
 trer=trainer(bms)
 
