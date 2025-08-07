@@ -13,6 +13,13 @@ class performance:
   verbose=True
   useDifTest=True
 
+  histoSig=np.zeros((0,0))
+  histoDR=np.zeros((0,0))
+  histoErrSig=np.zeros((0,0))
+  histoErrDR=np.zeros((0,0))
+  edges=np.zeros((0,0))
+  edgesDR=np.zeros((0,0))
+
   def __init__(self,tr,verbose=True,useDifDataTest=True):
     self.trer=tr
     self.verbose=verbose
@@ -77,25 +84,6 @@ class performance:
 
     return m1.values[0],m1.errors[0],m1.values[1],m1.errors[1],np.mean(c.pulls(m1.values)),np.std(c.pulls(m1.values)),m1.fval/(phibins.size)
   
-  def bootstrap_sample(self,all_data) :
-    nrows,ncols = all_data.shape
-    Nsamp = nrows
-    #choose to sample the array indices
-    all_indices = np.arange(Nsamp)
-    #samle Nk events
-    indices_bt = np.random.choice(all_indices,Nsamp)
-    return all_data[indices_bt]
-
-    
-  def bootstrap_sample_synched(self,all_data, all_weights) :
-    nrows,ncols = all_data.shape
-    Nsamp = nrows
-    #now we need to synchronise our bootstrap samples 
-    #so we instead choose to sample the array indices
-    all_indices = np.arange(Nsamp)
-    #samle Nk events
-    indices_bt = np.random.choice(all_indices,Nsamp)
-    return all_data[indices_bt],all_weights[indices_bt]
 
 
   def do_bootstrap_fits(self,nboot,gen,dataIn,sigWeightsIn):
@@ -174,6 +162,26 @@ class performance:
     
     return weights_DR
   
+  def bootstrap_sample(self,all_data) :
+    nrows,ncols = all_data.shape
+    Nsamp = nrows
+    #choose to sample the array indices
+    all_indices = np.arange(Nsamp)
+    #samle Nk events
+    indices_bt = np.random.choice(all_indices,Nsamp)
+    return all_data[indices_bt]
+
+    
+  def bootstrap_sample_synched(self,all_data, all_weights) :
+    nrows,ncols = all_data.shape
+    Nsamp = nrows
+    #now we need to synchronise our bootstrap samples 
+    #so we instead choose to sample the array indices
+    all_indices = np.arange(Nsamp)
+    #samle Nk events
+    indices_bt = np.random.choice(all_indices,Nsamp)
+    return all_data[indices_bt],all_weights[indices_bt]
+  
   def prepBootData(self,gen):
     boot_data = self.bootstrap_sample(gen.getData())
     #print('boot_data',boot_data)
@@ -238,6 +246,78 @@ class performance:
 
     return np.hstack((sigma, sigma_err,pull_mean,pull_std,chi2))
   
+  def do_bootstrap_both(self,nboot,gen) :
+    #given discriminatory variable xdisc,
+    #generate bootstrap sample and perform splot fit on it
+    sigma = np.zeros((nboot,1))
+    sigma_err = np.zeros((nboot,1))
+    N = np.zeros((nboot,1))
+    N_err = np.zeros((nboot,1))
+    pull_mean = np.zeros((nboot,1))
+    pull_std = np.zeros((nboot,1))
+    chi2 = np.zeros((nboot,1))
+    drsigma = np.zeros((nboot,1))
+    drsigma_err = np.zeros((nboot,1))
+    drN = np.zeros((nboot,1))
+    drN_err = np.zeros((nboot,1))
+    drpull_mean = np.zeros((nboot,1))
+    drpull_std = np.zeros((nboot,1))
+    drchi2 = np.zeros((nboot,1))
+
+    startT_it = time.time()
+    for iboot in range(0,nboot):
+      endT_it = time.time()
+      T_it=(endT_it-startT_it)
+      
+      if iboot==0:
+        print('performing DR bootstrap :',iboot)
+      else:
+        print('performing DR bootstrap :'+str(iboot)+' time since start '+format(T_it,'.2f')+'s')
+      boot_data,boot_weights,bck_weights=self.prepBootData(gen)
+
+      boot_data_test = boot_data
+      boot_weights_test = boot_weights
+      bck_weights_test = bck_weights
+      if self.useDifTest==True:
+        boot_data_test, boot_weights_test,bck_weights_test =self.prepBootData(gen)
+    
+
+      dr_weights_test = self.train(gen,boot_data,boot_weights,boot_data_test)
+      drsigma[iboot,0],drsigma_err[iboot,0],drN[iboot,0],drN_err[iboot,0],drpull_mean[iboot,0],drpull_std[iboot,0],drchi2[iboot,0] = self.fitAsymmetryDRW(gen,boot_data_test,dr_weights_test,boot_weights_test[:,0].T)
+      sigma[iboot,0],sigma_err[iboot,0],N[iboot,0],N_err[iboot,0],pull_mean[iboot,0],pull_std[iboot,0],chi2[iboot,0] = self.fitAsymmetrySPlot(gen,boot_data_test,boot_weights_test[:,0].T)
+      
+      h,herr,edg=self.getHistBins(boot_data_test[:,1],boot_weights_test[:,0].T,boot_weights_test[:,0].T,(-np.pi,np.pi),50)
+      hDR,hDRerr,edgDR=self.getHistBins(boot_data_test[:,1],dr_weights_test,boot_weights_test[:,0].T,(-np.pi,np.pi),50)
+
+      if self.histoSig.shape[0]==0:
+        self.histoSig=h.reshape((1,h.shape[0]))
+        self.histoDR=hDR.reshape((1,h.shape[0]))
+        self.histoErrSig=herr.reshape((1,h.shape[0]))
+        self.histoErrDR=hDRerr.reshape((1,h.shape[0]))
+        self.edges=edg.reshape((1,edg.shape[0]))
+        self.edgesDR=edgDR.reshape((1,edgDR.shape[0]))
+      else:
+        self.histoSig=np.vstack((self.histoSig,h.reshape((1,h.shape[0]))))
+        self.histoDR=np.vstack((self.histoDR,hDR.reshape((1,h.shape[0]))))
+        self.histoErrSig=np.vstack((self.histoErrSig,herr.reshape((1,h.shape[0]))))
+        self.histoErrDR=np.vstack((self.histoErrDR,hDRerr.reshape((1,h.shape[0]))))
+        self.edges=np.vstack((self.edges,edg.reshape((1,edg.shape[0]))))
+        self.edgesDR=np.vstack((self.edgesDR,edgDR.reshape((1,edgDR.shape[0]))))
+
+
+    if self.verbose==True:
+      print('\n\n ***** Mean and std of sPlot Loop *****')
+      print('sigma = ',np.mean(sigma),'sigma std = ',np.std(sigma),'sigma error =',np.mean(sigma_err))
+      print('pull mean ',np.mean(pull_mean),np.std(pull_mean))
+      print('pull std ',np.mean(pull_std),np.std(pull_std))
+
+      print('\n***** Mean and std of DR Loop *****')
+      print('sigma = ',np.mean(drsigma),'sigma std = ',np.std(drsigma),'sigma error =',np.mean(drsigma_err))
+      print('pull mean ',np.mean(drpull_mean),np.std(drpull_mean))
+      print('pull std ',np.mean(drpull_std),np.std(drpull_std))
+
+    return np.hstack((sigma, sigma_err,pull_mean,pull_std,chi2)), np.hstack((drsigma, drsigma_err,drpull_mean,drpull_std,drchi2))
+  
   def prepData(self,gen):
     gen.generate()
     all_data=gen.getData()
@@ -290,6 +370,25 @@ class performance:
       sigma[it,0],sigma_err[it,0],N[it,0],N_err[it,0],pull_mean[it,0],pull_std[it,0],chi2[it,0] = self.fitAsymmetrySPlot(gen,all_data,all_weights)
       sigmaDR[it,0],sigmaDR_err[it,0],NDR[it,0],NDR_err[it,0],pullDR_mean[it,0],pullDR_std[it,0],chi2DR[it,0] = self.fitAsymmetryDRW(gen,all_data,dr_weights,all_weights)
 
+      h,herr,edg=self.getHistBins(all_data[:,1],all_weights,all_weights,(-np.pi,np.pi),50)
+      hDR,hDRerr,edgDR=self.getHistBins(all_data[:,1],dr_weights,all_weights,(-np.pi,np.pi),50)
+
+      if self.histoSig.shape[0]==0:
+        self.histoSig=h.reshape((1,h.shape[0]))
+        self.histoDR=hDR.reshape((1,h.shape[0]))
+        self.histoErrSig=herr.reshape((1,h.shape[0]))
+        self.histoErrDR=hDRerr.reshape((1,h.shape[0]))
+        self.edges=edg.reshape((1,edg.shape[0]))
+        self.edgesDR=edgDR.reshape((1,edgDR.shape[0]))
+      else:
+        self.histoSig=np.vstack((self.histoSig,h.reshape((1,h.shape[0]))))
+        self.histoDR=np.vstack((self.histoDR,hDR.reshape((1,h.shape[0]))))
+        self.histoErrSig=np.vstack((self.histoErrSig,herr.reshape((1,h.shape[0]))))
+        self.histoErrDR=np.vstack((self.histoErrDR,hDRerr.reshape((1,h.shape[0]))))
+        self.edges=np.vstack((self.edges,edg.reshape((1,edg.shape[0]))))
+        self.edgesDR=np.vstack((self.edgesDR,edgDR.reshape((1,edgDR.shape[0]))))
+
+
     if self.verbose==True:
       print('\n\n ***** Mean and std of sPlot Loop *****')
       print('sigma = ',np.mean(sigma),'sigma std = ',np.std(sigma),'sigma error =',np.mean(sigma_err))
@@ -302,6 +401,19 @@ class performance:
       print('pull std ',np.mean(pullDR_std),np.std(pullDR_std))
 
     return np.hstack((sigma, sigma_err,pull_mean,pull_std,chi2)), np.hstack((sigmaDR, sigmaDR_err,pullDR_mean,pullDR_std,chi2DR))
+  
+  def getLoopHistos(self):
+    return self.histoSig,self.histoDR,self.histoErrSig,self.histoErrDR,self.edges,self.edgesDR
+  
+  def getHistBins(self,data,wgts,errwgts,rge,nbins):
+    sumweights, edges = np.histogram(data, weights=wgts, range=rge,bins=nbins)
+    sumweight_sqrd, edges = np.histogram(data, weights=errwgts*errwgts, range=rge,bins=nbins)
+    errs = np.sqrt(sumweight_sqrd)
+    return sumweights, errs, edges
+  
+  def combine_summary(self,perf1,perf2):
+    return np.vstack((perf1,perf2))
+    
   
   def print_summary(self,perf,algoName,testName):
 

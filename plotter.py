@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
+from matplotlib.colors import LogNorm, SymLogNorm
 import seaborn as sns
 import mplhep
 import numpy as np
@@ -25,6 +26,9 @@ class plotter:
     self.names=['_M','_Phi','_Z','_weights']
     self.titles=['Mass',r'$\phi$','Z','Weights']
     self.units=['[GeV]','[rad]','','']
+
+  def setEndName(self, en):
+    self.endName=en
 
   def plotSigSWeightComp(self,vars,sWeights,sigOnly,useErrorBars=False):
 
@@ -214,6 +218,8 @@ class plotter:
         else:
           axs[0].set_ylim(0, ymax * 1.35)
         axs[0].set_title(self.titles[j])
+        axs[0].axhline(y=0, color='grey', linestyle='--')
+
 
 
       res=[]
@@ -249,11 +255,11 @@ class plotter:
     histo = ax.errorbar(bincenters, sumweights, errs, fmt='.',color=color, label=label,linewidth=3,markersize=25,capsize=7,elinewidth=5)
     return histo,sumweights,errs,edges
 
-  def plotPerformanceResults(self,perf,perfDR,testName):
+  def plotPerformanceResults(self,perf,perfDR,testName,Sigma):
 
     title=['Asymmetry','Asymmetry Uncertainty','Mean of Pulls','Standard Deviation of Pulls',r'$\chi^{2}$']
     name=['asym','asymErr','pull','stdpull','chi2']
-    ranges=[(0.65,0.95),(0,0.2),(-0.1,0.1),(0,5),(0.0,5)]
+    ranges=[(Sigma-0.20,Sigma+0.20),(0,0.2),(-0.1,0.1),(0,5),(0.0,2.0)]
 
     for i in range(perf.shape[1]):
       fig = plt.figure(figsize=(20, 20))
@@ -269,4 +275,217 @@ class plotter:
       else:
         plt.title(title[i]+' ('+testName+')')
         plt.savefig(self.print_dir+testName+'_'+name[i]+self.endName+'.png')
+
+  def plotCorrelations(self,h,hDR,herr,herrDR,edges,edgesDR):
+    # co_sig = np.cov(h, rowvar=False)
+    # co_DR = np.cov(hDR, rowvar=False)
+    co_sig = np.corrcoef(h, rowvar=False)
+    co_DR = np.corrcoef(hDR, rowvar=False)
+    #print(h.shape)
+
+    edg=edges[0]
+    bin_centers = 0.5 * (edg[:-1] + edg[1:])
+    num_ticks = 7
+    #tick_indices = np.linspace(0, len(bin_centers) - 1, num=num_ticks, dtype=int)
+    #tick_labels = [f"{float(bin_centers[i]):.2f}" for i in tick_indices]
+    tick_indices = np.linspace(0, len(edg)-1, 7, dtype=int)
+    tick_positions = [edg[i] for i in tick_indices]
+    tick_labels = [f"{edg[i]:.2f}" for i in tick_indices]
+
+    extent = [edg[0], edg[-1], edg[0], edg[-1]]
+
+    # Plot side-by-side
+    fig, axs = plt.subplots(1, 2, figsize=(35, 17))
+
+    im1 = axs[0].imshow(co_sig, cmap='coolwarm', interpolation='none', origin='lower', vmin=-1, vmax=1, extent=extent, aspect='auto')
+    axs[0].set_title('sWeights Signal')
+    fig.colorbar(im1, ax=axs[0], fraction=0.046, pad=0.04)
+
+    im2 = axs[1].imshow(co_DR, cmap='coolwarm', interpolation='none', origin='lower', vmin=-1, vmax=1, extent=extent, aspect='auto')
+    axs[1].set_title('Density Ratio Signal')
+    fig.colorbar(im2, ax=axs[1], fraction=0.046, pad=0.04)
+
+    for ax in axs:
+      ax.set_xlabel(r'$\phi$ [rad]')
+      ax.set_ylabel(r'$\phi$ [rad]')
+      ax.set_xticks(tick_positions)
+      ax.set_xticklabels(tick_labels) #, rotation=90)
+      ax.set_yticks(tick_positions)
+      ax.set_yticklabels(tick_labels)
+
+    fig.suptitle('Bin-to-Bin Correlation Matrices')
+    plt.tight_layout()
+    plt.savefig(self.print_dir+'BinsCorr_Comp_phi'+self.endName+'.png')
+
+  def plotCovariances(self,h,hDR,herr,herrDR,edges,edgesDR):
+    co_sig = np.cov(h, rowvar=False)
+    co_DR = np.cov(hDR, rowvar=False)
+    #print(h.shape)
+
+    max_sig=np.amax(co_sig)
+    max_dr=np.amax(co_DR)
+    min_sig=np.amin(co_sig)
+    min_dr=np.amin(co_DR)
+    max=max_dr+0.05*max_dr
+    min=min_dr-0.05*min_dr
+    if max_sig>max_dr:
+      max=max_sig+0.05*max_sig
+
+    if min_sig<min_dr:
+      min=min_sig-0.05*min_sig
+
+    if min<0:
+      if np.abs(max)>np.abs(min):
+        min=-max
+      else:
+        max=-min
+    else:
+      min=-max
+
+    max=300
+    min=-300
+
+
+    edg=edges[0]
+    bin_centers = 0.5 * (edg[:-1] + edg[1:])
+    num_ticks = 7
+    #tick_indices = np.linspace(0, len(bin_centers) - 1, num=num_ticks, dtype=int)
+    #tick_labels = [f"{float(bin_centers[i]):.2f}" for i in tick_indices]
+    tick_indices = np.linspace(0, len(edg)-1, 7, dtype=int)
+    tick_positions = [edg[i] for i in tick_indices]
+    tick_labels = [f"{edg[i]:.2f}" for i in tick_indices]
+
+    extent = [edg[0], edg[-1], edg[0], edg[-1]]
+
+    # Plot side-by-side
+    fig, axs = plt.subplots(1, 2, figsize=(35, 17))
+
+    im1 = axs[0].imshow(co_sig, cmap='coolwarm', interpolation='none', origin='lower',vmin=min,vmax=max, extent=extent, aspect='auto') 
+    axs[0].set_title('sWeights Signal')
+    fig.colorbar(im1, ax=axs[0], fraction=0.046, pad=0.04)
+
+    im2 = axs[1].imshow(co_DR, cmap='coolwarm', interpolation='none', origin='lower',vmin=min,vmax=max, extent=extent, aspect='auto') #, vmin=min, vmax=max , norm=SymLogNorm(linthresh=1, linscale=0.5,vmin=min, vmax=max),
+    axs[1].set_title('Density Ratio Signal')
+    fig.colorbar(im2, ax=axs[1], fraction=0.046, pad=0.04)
+
+    for ax in axs:
+      ax.set_xlabel(r'$\phi$ [rad]')
+      ax.set_ylabel(r'$\phi$ [rad]')
+      ax.set_xticks(tick_positions)
+      ax.set_xticklabels(tick_labels) #, rotation=90)
+      ax.set_yticks(tick_positions)
+      ax.set_yticklabels(tick_labels)
+
+    fig.suptitle('Bin-to-Bin Covariance Matrices')
+    plt.tight_layout()
+    plt.savefig(self.print_dir+'BinsCov_Comp_phi'+self.endName+'.png')
+
+  def plotPulls(self,h,hDR,herr,herrDR,edges,edgesDR):
+
+    std = np.sqrt(herr**2 + herrDR**2)              # shape (N, n_bins)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        pulls = np.where((std != 0),
+                         (h - hDR) / std,
+                         0.0)                           # shape (N, n_bins)
+        pulls_err = np.where((std != 0),
+                             1.0,
+                             0.0)                       # shape (N, n_bins)
+
+    #one D example
+    #std=np.sqrt(errsig[i]**2 + errpred[i]**2) #sum of squares of sqrt(nsig) and sqrt(npred)
+    #res.append((nsig[i]-npred[i])/std)
+
+    # Bin centers (same for all histograms)
+    plotlocs = 0.5 * (edges[0,1:] + edges[0,:-1])            # shape (n_bins,)
+
+    print(plotlocs.shape)
+    print(h.shape)
+
+    fig = plt.figure(figsize=(20, 20))
+    plt.hist(pulls.flatten(), range=(-2,2),bins=100,color='royalblue',label='sWeighted Signal')
+    plt.xlabel('$g_{hist}$')
+    plt.title(r'$g_{hist}$ in $\phi$')
+    plt.savefig(self.print_dir+'PullsAllIts'+self.endName+'.png')
+
+    fig = plt.figure(figsize=(20, 20))
+    plt.hist(pulls[0], range=(-2,2),bins=100,color='royalblue',label='sWeighted Signal')
+    plt.xlabel('$g_{hist}$')
+    plt.title(r'$g_{hist}$ in $\phi$')
+    plt.savefig(self.print_dir+'PullsFirstIt'+self.endName+'.png')
+
+    # Per-histogram (row-wise) mean and std of pulls
+    pull_means = np.mean(pulls, axis=1)         # shape (N,)
+    pull_stds = np.std(pulls, axis=1, ddof=1)   # shape (N,)
+
+    std_means = np.mean(std, axis=1)         # shape (N,)
+    std_stds = np.std(std, axis=1, ddof=1)   # shape (N,)
+
+    # Global statistics on pull_means and pull_stds
+    mean_of_means = np.mean(pull_means)
+    std_of_means = np.std(pull_means, ddof=1)
+
+    mean_of_stds = np.mean(pull_stds)
+    std_of_stds = np.std(pull_stds, ddof=1)
+
+    mean_of_err = np.mean(std_means)
+    std_of_err = np.std(std_means, ddof=1)
+
+    mean_of_err_std = np.mean(std_stds)
+    std_of_err_std = np.std(std_stds, ddof=1)
+
+    print('\nMean and Std of all pull means:')
+    print(mean_of_means, std_of_means)
+
+    print('\nMean and Std of all pull std:')
+    print(mean_of_stds, std_of_stds)
+
+
+    print('\nMean and Std of all sqrt(2)*err means:')
+    print(mean_of_err, std_of_err)
+
+    print('\nMean and Std of all sqrt(2)*err stds:')
+    print(mean_of_err_std, std_of_err_std)
+
+    # mean_of_vals = np.mean(h)
+    # std_of_vals = np.std(h, ddof=1)
+
+    # mean_of_histoerr = np.mean(herr)
+    # std_of_histoerr = np.std(herr, ddof=1)
+
+    # mean_of_difs = np.mean(h-hDR)
+    # std_of_difs = np.std(h-hDR, ddof=1)
+
+    # print('\nMean and Std of all histo values:')
+    # print(mean_of_vals, std_of_vals)
+
+    # print('\nMean and Std of all histo differences:')
+    # print(mean_of_difs, std_of_difs)
+
+    # print('\nMean and Std of all err:')
+    # print(mean_of_histoerr, std_of_histoerr)
+
+    fig, axs = plt.subplots(2, 1, figsize=(20, 20), sharex=True, sharey=False,tight_layout=True,height_ratios=[2, 1])
+    histo = axs[0].errorbar(plotlocs, h[0], herr[0], fmt='.',color='royalblue', label="sWeights Signal",linewidth=3,markersize=25,capsize=7,elinewidth=5)
+    histo = axs[0].errorbar(plotlocs, hDR[0], herrDR[0], fmt='.',color='firebrick', label="Density Ratio Signal",linewidth=3,markersize=25,capsize=7,elinewidth=5)
+    axs[0].legend(loc='upper right')
+    ymin, ymax = axs[0].get_ylim()
+    if ymin<0:
+      axs[0].set_ylim(ymin, ymax * 1.35)
+    else:
+      axs[0].set_ylim(0, ymax * 1.35)
+    axs[0].set_title(r'$\phi$')
+    axs[0].axhline(y=0, color='grey', linestyle='--')
+        
+    axs[1].errorbar(x=plotlocs, y=pulls[0], yerr=pulls_err[0],fmt='s', color='mediumorchid',ms=10,capsize=7,elinewidth=3)
+    axs[1].axhline(y = 0.0, color = 'black', linestyle = '--')#,label='1') 
+    axs[1].axhline(y = -1.0, color = 'grey', linestyle = '--')#,label='1') 
+    axs[1].axhline(y = 1.0, color = 'grey', linestyle = '--')#,label='1') 
+    axs[1].axhline(y = -2.0, color = 'silver', linestyle = '--')#,label='1') 
+    axs[1].axhline(y = 2.0, color = 'silver', linestyle = '--')#,label='1') 
+    axs[1].set_ylim(-5, 5)
+    axs[1].set_ylabel('Pull')
+    plt.xlabel(r'$\phi$ [rad]')
+    plt.savefig(self.print_dir+'PullsFirstItHistoComp'+self.endName+'.png')
+
+    
       
